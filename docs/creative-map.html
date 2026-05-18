@@ -5,716 +5,961 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CLS ENGINE — מפת קריאייטיב 125</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070A12;--surface:#0D1526;--surface2:#101624;--border:#1e2d45;
+  --text:#F8FAFC;--dim:#94A3B8;--muted:#64748B;
+  --purple:#8B5CF6;--purple-bg:#7c3aed20;
+  --cyan:#38BDF8;--cyan-bg:#38bdf820;
+  --green:#22C55E;--green-bg:#22c55e20;
+  --amber:#F59E0B;--amber-bg:#f59e0b20;
+  --red:#EF4444;--red-bg:#ef444420;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.5;direction:rtl}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
 
-  :root {
-    --bg: #070A12;
-    --surface: #0D1526;
-    --surface2: #101624;
-    --border: #1e2d45;
-    --text: #F8FAFC;
-    --dim: #94A3B8;
-    --muted: #64748B;
-    --purple: #8B5CF6;
-    --purple-bg: #7c3aed20;
-    --cyan: #38BDF8;
-    --cyan-bg: #38bdf820;
-    --green: #22C55E;
-    --green-bg: #22c55e20;
-    --amber: #F59E0B;
-    --amber-bg: #f59e0b20;
-    --red: #EF4444;
-    --red-bg: #ef444420;
-  }
+/* Header */
+.header{border-bottom:1px solid var(--border);padding:32px 0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;background:linear-gradient(135deg,#7C3AED,#38BDF8);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;flex-shrink:0}
+.header h1{font-size:22px;font-weight:700}
+.header-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.badge-125{background:linear-gradient(135deg,var(--purple-bg),var(--cyan-bg));border:1px solid var(--purple);border-radius:12px;padding:8px 20px;text-align:center;flex-shrink:0}
+.badge-125 .num{font-size:36px;font-weight:900;color:var(--purple);line-height:1}
+.badge-125 .lbl{font-size:11px;color:var(--muted)}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    line-height: 1.5;
-    direction: rtl;
-  }
+/* Equation */
+.eq-section{padding:40px 0}
+.equation{display:flex;align-items:stretch;flex-wrap:wrap;gap:0}
+.eq-box{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--border);border-radius:0;padding:24px 20px}
+.eq-box:first-child{border-radius:16px 0 0 16px}
+.eq-box+.eq-box{border-right:none}
+.eq-result{flex:0 0 150px;background:linear-gradient(135deg,var(--purple-bg),var(--cyan-bg));border-color:var(--purple)!important;border-radius:0 16px 16px 0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.eq-operator{display:flex;align-items:center;padding:0 10px;color:var(--muted);font-size:26px;flex-shrink:0}
+.eq-count{font-size:38px;font-weight:900;line-height:1;margin-bottom:4px}
+.eq-label{font-size:12px;color:var(--muted);margin-bottom:14px}
+.eq-items{display:flex;flex-direction:column;gap:5px}
+.eq-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim)}
+.eq-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.result-num{font-size:52px;font-weight:900;color:var(--purple);line-height:1}
+.result-lbl{font-size:12px;color:var(--muted);margin-top:6px}
 
-  /* ── Layout ── */
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+/* Section title */
+.sec-title{font-size:17px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.sec-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 
-  /* ── Header ── */
-  .header {
-    border-bottom: 1px solid var(--border);
-    padding: 32px 0 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-  .header-title { display: flex; align-items: center; gap: 12px; }
-  .logo {
-    width: 44px; height: 44px;
-    background: linear-gradient(135deg, #7C3AED, #38BDF8);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 900; color: #fff;
-    flex-shrink: 0;
-  }
-  .header h1 { font-size: 22px; font-weight: 700; color: var(--text); }
-  .header-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .badge-125 {
-    background: linear-gradient(135deg, var(--purple-bg), var(--cyan-bg));
-    border: 1px solid var(--purple);
-    border-radius: 12px;
-    padding: 8px 20px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .badge-125 .num { font-size: 36px; font-weight: 900; color: var(--purple); line-height: 1; }
-  .badge-125 .lbl { font-size: 11px; color: var(--muted); }
+/* Tabs */
+.tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--dim);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab:hover{border-color:var(--purple);color:var(--text)}
+.tab.active{font-weight:600;color:var(--text)}
 
-  /* ── Equation ── */
-  .equation-section { padding: 40px 0; }
-  .equation { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
-  .eq-box {
-    flex: 1; min-width: 200px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px 20px;
-  }
-  .eq-box:first-child { border-radius: 16px 0 0 16px; }
-  .eq-box:last-child { border-radius: 0 16px 16px 0; border-right: none; }
-  .eq-box + .eq-box { border-right: none; }
-  .eq-box.eq-result {
-    background: linear-gradient(135deg, var(--purple-bg), var(--cyan-bg));
-    border-color: var(--purple);
-    flex: 0 0 160px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-  }
-  .eq-operator {
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 12px; color: var(--muted); font-size: 28px; font-weight: 300;
-    flex-shrink: 0;
-  }
-  .eq-box .eq-count {
-    font-size: 40px; font-weight: 900; line-height: 1;
-    margin-bottom: 4px;
-  }
-  .eq-box .eq-label { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
-  .eq-box .eq-items { display: flex; flex-direction: column; gap: 6px; }
-  .eq-item {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 13px; color: var(--dim);
-  }
-  .eq-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  }
-  .eq-result .result-num {
-    font-size: 56px; font-weight: 900; color: var(--purple); line-height: 1;
-  }
-  .eq-result .result-lbl { font-size: 13px; color: var(--muted); margin-top: 6px; }
-  .eq-result .result-sub { font-size: 11px; color: var(--muted); margin-top: 4px; opacity: .7; }
+/* Matrix */
+.matrix-section{padding:0 0 48px}
+.matrix-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+.mtable{width:100%;border-collapse:collapse;min-width:800px}
+.mtable th{background:var(--surface2);padding:12px 14px;font-size:11px;font-weight:600;text-align:right;border-bottom:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.mtable th.angle-h{width:130px;background:var(--surface)}
+.av-th{text-align:center!important;min-width:175px}
+.av-th .avi{font-size:17px;display:block;margin-bottom:2px}
+.av-th .avn{font-size:11px;color:var(--dim)}
+.mtable td{padding:0;border-bottom:1px solid var(--border);vertical-align:top}
+.angle-td{padding:14px;background:var(--surface);border-left:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.angle-lbl{display:flex;align-items:center;gap:7px}
+.angle-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.angle-name{font-size:11px;font-weight:600}
+.angle-id{font-size:10px;color:var(--muted)}
+.cc{padding:11px 13px;cursor:pointer;transition:background .12s;border-left:1px solid var(--border);height:100%}
+.cc:hover{background:#141d2e}
+.cc:last-child{border-left:none}
+.cc-id{font-size:9px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:.04em;margin-bottom:5px;opacity:.55}
+.cc-hook{font-size:11px;line-height:1.5;color:var(--dim);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cc-note{font-size:10px;color:var(--muted);margin-top:5px;padding-top:5px;border-top:1px solid var(--border)}
 
-  /* ── Tabs ── */
-  .matrix-section { padding: 0 0 48px; }
-  .section-title {
-    font-size: 18px; font-weight: 700; margin-bottom: 20px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .section-title .icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
-  }
-  .tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-  .tab {
-    padding: 8px 16px; border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--dim);
-    font-size: 13px; font-weight: 500;
-    cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
-  .tab:hover { border-color: var(--purple); color: var(--text); }
-  .tab.active {
-    border-color: currentColor;
-    font-weight: 600;
-    color: var(--text);
-  }
+/* Grid */
+.grid-section{padding:0 0 64px}
+.filter-wrap{margin-bottom:20px}
+.frow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.flabel{font-size:11px;color:var(--muted);min-width:48px;flex-shrink:0}
+.chip{padding:5px 11px;border-radius:14px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:all .12s;white-space:nowrap}
+.chip:hover{color:var(--dim);border-color:var(--muted)}
+.chip.active{color:var(--text);font-weight:600;border-color:currentColor}
+.grid-count{font-size:13px;color:var(--muted);margin-bottom:18px}
+.grid-count strong{color:var(--text)}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:11px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:15px;cursor:pointer;transition:border-color .15s,background .15s}
+.card:hover{border-color:var(--purple);background:var(--surface2)}
+.card-badges{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid transparent;letter-spacing:.02em}
+.card-id{font-size:9px;font-weight:700;font-family:'Courier New',monospace;color:var(--muted);letter-spacing:.04em;margin-bottom:7px}
+.card-hook{font-size:12px;line-height:1.6;color:var(--dim);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card-note{font-size:10px;color:var(--muted);margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
 
-  /* ── Matrix Table ── */
-  .matrix-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
-  .matrix-table { width: 100%; border-collapse: collapse; min-width: 800px; }
-  .matrix-table th {
-    background: var(--surface2);
-    padding: 12px 14px;
-    font-size: 12px; font-weight: 600;
-    text-align: right;
-    border-bottom: 1px solid var(--border);
-    color: var(--dim);
-    white-space: nowrap;
-  }
-  .matrix-table th.angle-header {
-    width: 140px;
-    background: var(--surface);
-  }
-  .avatar-th {
-    text-align: center !important;
-    min-width: 180px;
-  }
-  .avatar-th .av-icon { font-size: 18px; display: block; margin-bottom: 2px; }
-  .avatar-th .av-name { font-size: 11px; color: var(--dim); }
-  .matrix-table td {
-    padding: 0;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  .matrix-table td.angle-cell {
-    padding: 16px 14px;
-    background: var(--surface);
-    border-left: 1px solid var(--border);
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-  .angle-label {
-    display: flex; align-items: center; gap: 8px;
-  }
-  .angle-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .angle-name { font-size: 12px; font-weight: 600; color: var(--text); }
-  .angle-id { font-size: 10px; color: var(--muted); }
-  .creative-cell {
-    padding: 12px 14px;
-    cursor: pointer;
-    transition: background .12s;
-    height: 100%;
-    border-left: 1px solid var(--border);
-  }
-  .creative-cell:hover { background: #141d2e; }
-  .creative-cell:last-child { border-left: none; }
-  .cell-id {
-    font-size: 10px; font-weight: 700;
-    font-family: 'Courier New', monospace;
-    letter-spacing: .04em;
-    margin-bottom: 6px;
-    opacity: .6;
-  }
-  .cell-hook {
-    font-size: 12px; line-height: 1.5;
-    color: var(--dim);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .cell-note {
-    font-size: 10px; color: var(--muted);
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
-  }
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(7,10,18,.88);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;z-index:100;opacity:0;pointer-events:none;transition:opacity .15s;overflow-y:auto}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:#0D1526;border:1px solid var(--border);border-radius:16px;width:100%;max-width:620px;padding:28px;transform:translateY(10px);transition:transform .15s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.mhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.mid{font-size:11px;font-weight:700;font-family:'Courier New',monospace;color:var(--muted);letter-spacing:.05em}
+.mclose{width:28px;height:28px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s}
+.mclose:hover{background:var(--border);color:var(--text)}
+.mbadges{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px}
+.mbadge{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid transparent}
+.msec{margin-bottom:22px}
+.msec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:10px}
+.mhook{font-size:17px;font-weight:700;line-height:1.5;color:var(--text)}
 
-  /* ── Grid section ── */
-  .grid-section { padding: 0 0 64px; }
-  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-  .filter-row + .filter-row { margin-bottom: 20px; }
-  .filter-label { font-size: 11px; color: var(--muted); align-self: center; margin-left: 4px; min-width: 50px; }
-  .chip {
-    padding: 5px 12px; border-radius: 16px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted); font-size: 12px;
-    cursor: pointer; transition: all .12s; white-space: nowrap;
-  }
-  .chip:hover { color: var(--dim); border-color: var(--muted); }
-  .chip.active {
-    color: var(--text); font-weight: 600;
-    border-color: currentColor;
-  }
-  .grid-count {
-    font-size: 13px; color: var(--muted); margin-bottom: 20px;
-  }
-  .grid-count strong { color: var(--text); }
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px;
-  }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    cursor: pointer;
-    transition: border-color .15s, background .15s;
-  }
-  .card:hover { border-color: var(--purple); background: var(--surface2); }
-  .card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-  .badge {
-    font-size: 10px; font-weight: 700;
-    padding: 2px 8px; border-radius: 10px;
-    border: 1px solid transparent;
-    letter-spacing: .03em;
-  }
-  .card-id {
-    font-size: 10px; font-weight: 700; font-family: 'Courier New', monospace;
-    color: var(--muted); letter-spacing: .04em; margin-bottom: 8px;
-  }
-  .card-hook {
-    font-size: 13px; line-height: 1.6; color: var(--dim);
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .card-note {
-    font-size: 11px; color: var(--muted);
-    margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid var(--border);
-  }
+/* Copy button */
+.copy-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:12px;cursor:pointer;transition:all .15s;margin-bottom:10px}
+.copy-btn:hover{border-color:var(--purple);color:var(--purple)}
+.copy-btn.copied{border-color:var(--green);color:var(--green)}
 
-  /* ── Modal ── */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(7,10,18,.85);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px; z-index: 100;
-    opacity: 0; pointer-events: none; transition: opacity .15s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal {
-    background: #0D1526;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    width: 100%; max-width: 540px;
-    max-height: 85vh; overflow-y: auto;
-    padding: 28px;
-    transform: translateY(12px); transition: transform .15s;
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-  .modal-id { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; color: var(--muted); letter-spacing: .05em; }
-  .modal-close {
-    width: 28px; height: 28px; border-radius: 8px;
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--muted); cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: background .12s;
-  }
-  .modal-close:hover { background: var(--border); color: var(--text); }
-  .modal-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-  .modal-badge { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1px solid transparent; }
-  .modal-section { margin-bottom: 20px; }
-  .modal-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
-  .modal-hook { font-size: 18px; font-weight: 600; line-height: 1.5; color: var(--text); }
-  .modal-body { font-size: 14px; color: var(--dim); line-height: 1.7; }
-  .modal-cta {
-    margin-top: 24px;
-    background: var(--purple-bg);
-    border: 1px solid var(--purple);
-    border-radius: 10px; padding: 12px 16px;
-    font-size: 13px; color: var(--purple); font-weight: 600;
-  }
+/* Carousel slides */
+.slides{display:flex;flex-direction:column;gap:8px}
+.slide{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px}
+.slide-num{font-size:9px;font-weight:700;font-family:'Courier New',monospace;color:var(--muted);margin-bottom:6px;letter-spacing:.06em}
+.slide-headline{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px}
+.slide-body{font-size:12px;color:var(--dim);line-height:1.6;white-space:pre-line}
+.slide-visual{font-size:10px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
 
-  /* ── Footer ── */
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 24px 0; text-align: center;
-    color: var(--muted); font-size: 12px;
-  }
+/* Script */
+.script-block{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;line-height:1.8;color:var(--dim);white-space:pre-line;direction:rtl}
+.script-ts{color:var(--purple);font-weight:700;font-size:11px}
 
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    .eq-box { min-width: 140px; }
-    .header { flex-direction: column; align-items: flex-start; }
-  }
+/* Image prompt */
+.prompt-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:12px;line-height:1.7;color:var(--dim);direction:ltr;text-align:left}
+
+/* AI image copy section */
+.image-copy{margin-bottom:14px}
+.image-copy .copy-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.image-copy .copy-value{font-size:14px;color:var(--dim);margin-bottom:8px;line-height:1.5}
+
+/* CTA footer */
+.mcta{margin-top:20px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--purple);font-weight:600}
+
+footer{border-top:1px solid var(--border);padding:20px 0;text-align:center;color:var(--muted);font-size:12px;margin-top:16px}
 </style>
 </head>
 <body>
-
 <div class="wrap">
 
-  <!-- ── Header ── -->
-  <header class="header">
-    <div class="header-title">
-      <div class="logo">C</div>
-      <div>
-        <h1>CLS ENGINE — מפת קריאייטיב</h1>
-        <div class="header-sub">5 זוויות × 5 אווטארים × 5 פורמטים</div>
-      </div>
-    </div>
-    <div class="badge-125">
-      <div class="num">125</div>
-      <div class="lbl">וריאציות קריאייטיב</div>
-    </div>
-  </header>
-
-  <!-- ── Equation ── -->
-  <section class="equation-section">
-    <div class="equation">
-      <!-- Angles -->
-      <div class="eq-box" id="eq-angles"></div>
-      <div class="eq-operator">×</div>
-      <!-- Avatars -->
-      <div class="eq-box" id="eq-avatars"></div>
-      <div class="eq-operator">×</div>
-      <!-- Formats -->
-      <div class="eq-box" id="eq-formats"></div>
-      <div class="eq-operator">=</div>
-      <!-- Result -->
-      <div class="eq-box eq-result">
-        <div class="result-num">125</div>
-        <div class="result-lbl">קריאייטיבים</div>
-        <div class="result-sub">וריאציות ייחודיות</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Matrix ── -->
-  <section class="matrix-section">
-    <div class="section-title">
-      <div class="icon" style="background:#7c3aed20;">🗂️</div>
-      מטריצת הצלבות — לפי פורמט
-    </div>
-    <div class="tabs" id="format-tabs"></div>
-    <div class="matrix-wrapper">
-      <table class="matrix-table" id="matrix-table"></table>
-    </div>
-  </section>
-
-  <!-- ── Grid ── -->
-  <section class="grid-section">
-    <div class="section-title">
-      <div class="icon" style="background:#38bdf820;">🔍</div>
-      כל 125 הקריאייטיבים — עם סינון
-    </div>
+<header class="header">
+  <div class="header-left">
+    <div class="logo">C</div>
     <div>
-      <div class="filter-row">
-        <span class="filter-label">זווית:</span>
-        <div id="filter-angles"></div>
-      </div>
-      <div class="filter-row">
-        <span class="filter-label">אווטאר:</span>
-        <div id="filter-avatars"></div>
-      </div>
-      <div class="filter-row" style="margin-bottom:20px;">
-        <span class="filter-label">פורמט:</span>
-        <div id="filter-formats"></div>
-      </div>
+      <h1>CLS ENGINE — מפת קריאייטיב</h1>
+      <div class="header-sub">5 זוויות × 5 אווטארים × 5 פורמטים — לחץ על כל תא לפירוט מלא</div>
     </div>
-    <div class="grid-count" id="grid-count"></div>
-    <div class="cards-grid" id="cards-grid"></div>
-  </section>
+  </div>
+  <div class="badge-125"><div class="num">125</div><div class="lbl">וריאציות</div></div>
+</header>
 
+<!-- Equation -->
+<section class="eq-section">
+  <div class="equation">
+    <div class="eq-box" id="eq-angles"></div>
+    <div class="eq-operator">×</div>
+    <div class="eq-box" id="eq-avatars"></div>
+    <div class="eq-operator">×</div>
+    <div class="eq-box" id="eq-formats"></div>
+    <div class="eq-operator">=</div>
+    <div class="eq-box eq-result">
+      <div class="result-num">125</div>
+      <div class="result-lbl">קריאייטיבים</div>
+    </div>
+  </div>
+</section>
+
+<!-- Matrix -->
+<section class="matrix-section">
+  <div class="sec-title"><div class="sec-icon" style="background:#7c3aed20">🗂️</div>מטריצת הצלבות — לפי פורמט</div>
+  <div class="tabs" id="format-tabs"></div>
+  <div class="matrix-wrap"><table class="mtable" id="matrix-table"></table></div>
+</section>
+
+<!-- Grid -->
+<section class="grid-section">
+  <div class="sec-title"><div class="sec-icon" style="background:#38bdf820">🔍</div>כל 125 הקריאייטיבים</div>
+  <div class="filter-wrap">
+    <div class="frow"><span class="flabel">זווית:</span><div id="fa"></div></div>
+    <div class="frow"><span class="flabel">אווטאר:</span><div id="fb"></div></div>
+    <div class="frow"><span class="flabel">פורמט:</span><div id="fc"></div></div>
+  </div>
+  <div class="grid-count" id="gc"></div>
+  <div class="cards-grid" id="cg"></div>
+</section>
 </div>
 
-<!-- ── Modal ── -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" id="modal-content"></div>
+<!-- Modal -->
+<div class="modal-overlay" id="mo" onclick="closeModal(event)">
+  <div class="modal" id="mc"></div>
 </div>
 
-<footer>
-  <div class="wrap">CLS ENGINE © 2026 — עדכון: 2026-05-19</div>
-</footer>
+<footer><div class="wrap">CLS ENGINE © 2026</div></footer>
 
 <script>
-/* ─────────────────── DATA ─────────────────── */
-
-const FORMATS = [
-  { id:'F1', code:'CAR', name:'קרוסלה',     color:'#8B5CF6', bg:'#7c3aed20', desc:'קרוסלה חינוכית — 7 שקופיות' },
-  { id:'F2', code:'IMG', name:'תמונה',       color:'#38BDF8', bg:'#38bdf820', desc:'תמונה סטטית — לפני/אחרי' },
-  { id:'F3', code:'UGC', name:'סרטון UGC',  color:'#22C55E', bg:'#22c55e20', desc:'וידאו ישיר לקמרה — 60 שניות' },
-  { id:'F4', code:'POD', name:'פודקאסט',    color:'#F59E0B', bg:'#f59e0b20', desc:'קליפ שיחה — 45 שניות' },
-  { id:'F5', code:'DEM', name:'Demo Reel',  color:'#EF4444', bg:'#ef444420', desc:'Screen recording — 60 שניות' },
+/* ── DATA ── */
+const FMT=[
+  {id:'F1',code:'CAR',name:'קרוסלה',   color:'#8B5CF6',bg:'#7c3aed20',desc:'קרוסלה — 7 שקופיות'},
+  {id:'F2',code:'IMG',name:'תמונה',     color:'#38BDF8',bg:'#38bdf820',desc:'תמונה סטטית'},
+  {id:'F3',code:'UGC',name:'סרטון UGC',color:'#22C55E',bg:'#22c55e20',desc:'וידאו ישיר לקמרה, 60 שניות'},
+  {id:'F4',code:'POD',name:'פודקאסט',  color:'#F59E0B',bg:'#f59e0b20',desc:'קליפ שיחה, 45 שניות'},
+  {id:'F5',code:'DEM',name:'Demo Reel',color:'#EF4444',bg:'#ef444420',desc:'Screen recording, 60 שניות'},
 ];
-
-const ANGLES = [
-  { id:'Z1', name:'כאב — תקציב שנשרף', short:'כאב',      color:'#EF4444', bg:'#ef444420' },
-  { id:'Z2', name:'מהירות לווינר',      short:'מהירות',   color:'#F59E0B', bg:'#f59e0b20' },
-  { id:'Z3', name:'מערכת vs. ניחוש',    short:'מערכת',    color:'#8B5CF6', bg:'#7c3aed20' },
-  { id:'Z4', name:'Scale Readiness',    short:'סקייל',    color:'#22C55E', bg:'#22c55e20' },
-  { id:'Z5', name:'תחרותיות',           short:'תחרות',    color:'#38BDF8', bg:'#38bdf820' },
+const ANG=[
+  {id:'Z1',name:'כאב — תקציב שנשרף',short:'כאב',   color:'#EF4444',bg:'#ef444420'},
+  {id:'Z2',name:'מהירות לווינר',     short:'מהירות',color:'#F59E0B',bg:'#f59e0b20'},
+  {id:'Z3',name:'מערכת vs. ניחוש',   short:'מערכת', color:'#8B5CF6',bg:'#7c3aed20'},
+  {id:'Z4',name:'Scale Readiness',   short:'סקייל', color:'#22C55E',bg:'#22c55e20'},
+  {id:'Z5',name:'תחרותיות',          short:'תחרות', color:'#38BDF8',bg:'#38bdf820'},
 ];
-
-const AVATARS = [
-  { id:'A1', name:'מדיה ביאר סוכנות', short:'סוכנות', icon:'🏢', pain:'לקוחות שואלים למה זה לא עובד' },
-  { id:'A2', name:'בעל חנות איקומרס', short:'איקומרס',icon:'🛒', pain:'לא יודע מה מייצר את הרווח' },
-  { id:'A3', name:'יוצר קורסים',       short:'קורסים', icon:'🎓', pain:'שורף על קריאייטיבים כל שבוע' },
-  { id:'A4', name:'בעל עסק שירות',     short:'שירות',  icon:'💼', pain:'מייאש, מתחיל מאפס כל חודש' },
-  { id:'A5', name:'CMO סטארטאפ',       short:'CMO',    icon:'🚀', pain:'צריך להוכיח ROI למשקיעים' },
+const AV=[
+  {id:'A1',name:'מדיא ביאר סוכנות',short:'סוכנות',icon:'🏢',pain:'לקוחות שואלים "למה זה לא עובד?"'},
+  {id:'A2',name:'בעל חנות איקומרס', short:'איקומרס',icon:'🛒',pain:'לא יודע מה מייצר את הרווח'},
+  {id:'A3',name:'יוצר קורסים',      short:'קורסים', icon:'🎓',pain:'שורף על קריאייטיבים חדשים כל שבוע'},
+  {id:'A4',name:'בעל עסק שירות',    short:'שירות',  icon:'💼',pain:'מתחיל מאפס כל חודש, מייאש'},
+  {id:'A5',name:'CMO סטארטאפ',      short:'CMO',    icon:'🚀',pain:'צריך להוכיח ROI למשקיעים'},
 ];
-
-// 25 hooks — Angle × Avatar
-const HOOKS = {
-  'Z1-A1': 'כמה לקוחות שאלו אותך "למה הקמפיין לא עובד" החודש?',
-  'Z1-A2': 'כמה קריאייטיבים הוצאת השנה — וכמה ייצרו ROAS חיובי?',
-  'Z1-A3': 'כמה פעמים שרפת על hook חדש בלי לדעת למה הקודם מת?',
-  'Z1-A4': 'כמה חודשים אתה מפרסם בלי תוצאות קבועות?',
-  'Z1-A5': 'כמה מתקציב Q1 הלך על קריאייטיבים שלא ייצרו תוצאה?',
-  'Z2-A1': 'אם כל לקוח היה מקבל ווינר תוך 5 ימים — כמה לקוחות חדשים היית לוקח?',
-  'Z2-A2': 'חנות שמוצאת ווינר ב-72 שעות — מסקיילת 3 שבועות לפניך.',
-  'Z2-A3': 'כמה זמן מ"רעיון" לקמפיין חי? ואיך מקצרים את זה?',
-  'Z2-A4': 'עסק שירות שמוצא ווינר מהר — ממלא יומן. מי שמחכה — מחכה.',
-  'Z2-A5': 'המתחרה מגדיל תקציב. הוא מצא ווינר. אתה עוד בשלב הבדיקה.',
-  'Z3-A1': 'אם הדוח ללקוח מבוסס על "נראה לי" — זה לא ניהול מדיה.',
-  'Z3-A2': 'קמפיין מבוסס תחושת בטן = הימור. קמפיין עם מערכת = ידע.',
-  'Z3-A3': 'כשאתה בוחר hook לקורס — זה תחושה או נתונים?',
-  'Z3-A4': 'הפסק לנחש מה עובד לעסק שלך. יש דרך לדעת.',
-  'Z3-A5': 'CMO שמחליט על קריאייטיבים בלי מערכת — מדווח בלי ביטחון.',
-  'Z4-A1': 'כשסקור הווינר של לקוח מגיע ל-80 — אתה יודע אם להגדיל?',
-  'Z4-A2': '90% מהחנויות מגדילות תקציב מוקדם מדי. זה שובר את הווינר.',
-  'Z4-A3': 'איך יודעים שה-hook הזה מוכן לסקייל — ולא רק "נראה טוב"?',
-  'Z4-A4': 'עסק שיודע מתי בדיוק לסקייל — לא מבזבז על מה שעוד לא מוכן.',
-  'Z4-A5': 'Scale Readiness Score של 80+ = נתון. לא תחושה. לא ניחוש.',
-  'Z5-A1': 'הסוכנות השנייה בשוק בדקה 12 קריאייטיבים החודש. אתה כמה?',
-  'Z5-A2': 'בזמן שבדקת מודעה אחת — מתחרה עם מערכת כבר בסקייל.',
-  'Z5-A3': 'יוצרים עם מערכת מוצאים ווינרים לפני כולם.',
-  'Z5-A4': 'בשוק שלך מישהו כבר בונה מערכת בדיקות. מה אתה בונה?',
-  'Z5-A5': 'המתחרים מגדילים ב-data. אתה מגדיל ב-gut feeling?',
+const HOOKS={
+  'Z1-A1':'כמה לקוחות שאלו אותך "למה הקמפיין לא עובד" החודש?',
+  'Z1-A2':'כמה קריאייטיבים הוצאת השנה — וכמה ייצרו ROAS חיובי?',
+  'Z1-A3':'כמה פעמים שרפת על hook חדש בלי לדעת למה הקודם מת?',
+  'Z1-A4':'כמה חודשים אתה מפרסם בלי תוצאות קבועות?',
+  'Z1-A5':'כמה מתקציב Q1 הלך על קריאייטיבים שלא ייצרו תוצאה?',
+  'Z2-A1':'אם כל לקוח היה מקבל ווינר תוך 5 ימים — כמה חדשים היית לוקח?',
+  'Z2-A2':'חנות שמוצאת ווינר ב-72 שעות — מסקיילת 3 שבועות לפניך.',
+  'Z2-A3':'כמה זמן מ"רעיון" לקמפיין חי? ואיך מקצרים את זה?',
+  'Z2-A4':'עסק שירות שמוצא ווינר מהר — ממלא יומן. מי שמחכה — מחכה.',
+  'Z2-A5':'המתחרה מגדיל תקציב. הוא מצא ווינר. אתה עוד בשלב הבדיקה.',
+  'Z3-A1':'אם הדוח ללקוח מבוסס על "נראה לי" — זה לא ניהול מדיה.',
+  'Z3-A2':'קמפיין מבוסס תחושת בטן = הימור. קמפיין עם מערכת = ידע.',
+  'Z3-A3':'כשאתה בוחר hook לקורס — זה תחושה או נתונים?',
+  'Z3-A4':'הפסק לנחש מה עובד לעסק שלך. יש דרך לדעת.',
+  'Z3-A5':'CMO שמחליט על קריאייטיבים בלי מערכת — מדווח בלי ביטחון.',
+  'Z4-A1':'כשהווינר של לקוח מגיע ל-Score 80 — אתה יודע להגדיל?',
+  'Z4-A2':'90% מהחנויות מגדילות תקציב מוקדם מדי. זה שובר את הווינר.',
+  'Z4-A3':'איך יודעים שה-hook הזה מוכן לסקייל — ולא רק "נראה טוב"?',
+  'Z4-A4':'עסק שיודע מתי בדיוק לסקייל — לא מבזבז על מה שעוד לא מוכן.',
+  'Z4-A5':'Scale Readiness Score של 80+ = נתון. לא תחושה. לא ניחוש.',
+  'Z5-A1':'הסוכנות השנייה בשוק בדקה 12 קריאייטיבים החודש. אתה כמה?',
+  'Z5-A2':'בזמן שבדקת מודעה אחת — מתחרה עם מערכת כבר בסקייל.',
+  'Z5-A3':'יוצרים עם מערכת מוצאים ווינרים לפני כולם.',
+  'Z5-A4':'בשוק שלך מישהו כבר בונה מערכת בדיקות. מה אתה בונה?',
+  'Z5-A5':'המתחרים מגדילים ב-data. אתה מגדיל ב-gut feeling?',
 };
 
-// Format-specific notes per angle
-const FORMAT_NOTES = {
-  'F1': { Z1:'7 שקופיות: טעויות שמבזבזות תקציב', Z2:'7 שקופיות: 5 שלבים ל-ווינר', Z3:'7 שקופיות: ניחוש vs. מערכת', Z4:'7 שקופיות: מתי להגדיל תקציב', Z5:'7 שקופיות: פער בין מתחרים' },
-  'F2': { Z1:'Split: לפני (chaos) / אחרי (Dashboard)', Z2:'Dashboard + "ווינר ב-72 שעות"', Z3:'Split: אקסל / CLS Engine', Z4:'Scale Score 87 ירוק — hero', Z5:'"הם כבר בסקייל" — comparator' },
-  'F3': { Z1:'60 שניות: כאב → פתרון → תוצאה', Z2:'45 שניות: timeline לפני/אחרי', Z3:'60 שניות: "הפסקתי לנחש"', Z4:'45 שניות: "כשראיתי 80 הגדלתי"', Z5:'60 שניות: "המתחרה שלי..."' },
-  'F4': { Z1:'קליפ: "כמה עולה קריאייטיב שנכשל?"', Z2:'קליפ: "מהירות vs. דיוק"', Z3:'קליפ: "מה ההבדל בין מדיה ביאר טוב?"', Z4:'קליפ: "מתי מגדילים תקציב?"', Z5:'קליפ: "מה עושה מי שמרוויח?"' },
-  'F5': { Z1:'Demo: Discovery → ווינר (בעיה נפתרת)', Z2:'Demo: timelapse ל-ווינר', Z3:'Demo: Hypothesis flow', Z4:'Demo: Scale Score animation 80+', Z5:'Demo: "כך נראית מערכת — לעומת..."' },
-};
+/* ── DETAILED CONTENT GENERATORS ── */
 
-/* ─────────────────── BUILD CREATIVES ─────────────────── */
+function carousel(ang, av){
+  const t={
+    Z1:(av)=>({title:`5 טעויות שמבזבזות את תקציב הקריאייטיב — ${av.short}`,slides:[
+      {n:'01 — כריכה',h:'5 טעויות שמבזבזות את תקציב הקריאייטיב שלך',b:'(כנ"ל אם אתה '+av.short+')',v:'רקע שחור, כותרת אדומה בולטת, אייקון כסף נשרף'},
+      {n:'02 — טעות 1',h:'בודקים לפי תחושת בטן',b:'כל קריאייטיב יצא בלי היפותזה ברורה.\nאין שאלה שנבדקת.\nאין תוצאה ניתנת לשחזור.',v:'X אדום על טבלת אקסל מבולגנת'},
+      {n:'03 — טעות 2',h:'אין זיכרון ממה עבד',b:'כל חודש מתחילים מאפס.\nאין Winners Library.\nאין ידע שמצטבר.',v:'ארכיון ריק, ניירות מפוזרים'},
+      {n:'04 — טעות 3',h:'מסקיילים מוקדם מדי',b:'ראית ROAS טוב יומיים?\nקפצת. שברת את הווינר.\nחזרת לאפס.',v:'גרף שעולה ואז צונח'},
+      {n:'05 — טעות 4',h:'זמן גילוי ווינר ארוך מדי',b:'ממוצע בלי מערכת: 3–6 שבועות.\nעם מערכת: פחות מ-5 ימים.\nזה פי 5 יותר ווינרים.',v:'שעון מול timer מהיר'},
+      {n:'06 — טעות 5',h:'אין מחזור בדיקות מסודר',b:'Discovery → Test → Winner → Scale.\nבלי המחזור הזה — אתה שורף.',v:'מחזור שבור vs. מחזור שלם'},
+      {n:'07 — CTA',h:'CLS ENGINE',b:'המחזור שמוצא ווינר תוך 72 שעות.\nבלי ניחושים.\n7 ימים חינם — לחץ על הלינק.',v:'Dashboard ירוק, Scale Score 84, כפתור CTA'},
+    ]}),
+    Z2:(av)=>({title:`5 שלבים לווינר ב-72 שעות — ${av.short}`,slides:[
+      {n:'01 — כריכה',h:'ווינר ב-72 שעות',b:'5 שלבים.\nמחזור אחד.\nתוצאה.',v:'Timer ירוק 72:00 על רקע שחור'},
+      {n:'02 — שלב 1',h:'גדר היפותזה',b:'לא "בואו נעשה מודעה".\n"אנחנו בודקים האם hook של כאב\nמנצח hook של תוצאה."',v:'Lightbulb, שאלה ברורה על מסך'},
+      {n:'03 — שלב 2',h:'צא עם משתנה אחד',b:'Hook בלבד. לא hook + עיצוב + קהל.\nמשתנה אחד בכל פעם.\nאחרת — לא יודעים מה עבד.',v:'Variable isolation diagram'},
+      {n:'04 — שלב 3',h:'זהה סיגנל ב-48 שעות',b:'CTR מעל 3%? CPA מתחת לסף?\nיש סיגנל.\nלא מחכים שבוע.',v:'גרף CTR עולה, שעון 48:00'},
+      {n:'05 — שלב 4',h:'בדוק Scale Readiness',b:'Score מעל 80?\nיציבות, Frequency נמוכה, רווח מוכח.\nרק אז — מגדילים.',v:'Scale Readiness Score 83 ירוק'},
+      {n:'06 — שלב 5',h:'Scale בביטחון',b:'לא ניחוש. לא "נראה טוב".\nנתונים שאומרים קדימה.\n×3 תקציב. הווינר מחזיק.',v:'חץ עולה, תקציב מוכפל'},
+      {n:'07 — CTA',h:'CLS ENGINE',b:'בנוי בשביל '+av.short+' שרוצה ווינר מהר.\n7 ימים חינם.',v:'Dashboard עם 5 ווינרים, כפתור CTA'},
+    ]}),
+    Z3:(av)=>({title:`ניחוש vs. מערכת — מה ה${av.short} הרווחי עושה אחרת`,slides:[
+      {n:'01 — כריכה',h:'ניחוש vs. מערכת',b:'מה ה'+av.short+' הרווחי עושה אחרת?',v:'Split: X אדום משמאל, V ירוק מימין'},
+      {n:'02 — החלטות',h:'מחליט',b:'🔴 ניחוש: "זה נראה טוב, בואו נרוץ"\n🟢 מערכת: "ההיפותזה היא X — נבדוק לפי Y"',v:'מחליט לבד מול דאשבורד'},
+      {n:'03 — מדידה',h:'מודד',b:'🔴 ניחוש: "ROAS טוב — נגדיל"\n🟢 מערכת: "Scale Readiness 82 — מוכן"',v:'מספרים עמומים מול Scale Score ברור'},
+      {n:'04 — לימוד',h:'לומד',b:'🔴 ניחוש: כל חודש מתחיל מאפס\n🟢 מערכת: Winners Library מצטבר',v:'ארכיון ריק מול מאגר ווינרים'},
+      {n:'05 — מהירות',h:'מוצא ווינרים',b:'🔴 ניחוש: 4–6 שבועות ממוצע\n🟢 מערכת: פחות מ-5 ימים',v:'Timeline השוואתי'},
+      {n:'06 — סקייל',h:'מסקייל',b:'🔴 ניחוש: שובר ווינרים כשמגדיל\n🟢 מערכת: יודע בדיוק מתי ואיך',v:'גרף שבור מול גרף יציב'},
+      {n:'07 — CTA',h:'CLS ENGINE',b:'בנה מערכת — לא ניחושים.\n7 ימים חינם.',v:'CLS Dashboard, כפתור CTA'},
+    ]}),
+    Z4:(av)=>({title:`5 סימנים שהווינר מוכן לסקייל — ${av.short}`,slides:[
+      {n:'01 — כריכה',h:'5 סימנים שהווינר מוכן לסקייל',b:'(90% מה'+av.short+' לא יודעים לזהות אותם)',v:'Scale Score gauge, מספר גדול'},
+      {n:'02 — סימן 1',h:'CTR יציב מעל 3%',b:'לא peak אחד.\nיציבות על פני 72 שעות.\nבלעדיה — ייתכן שזה רעש.',v:'גרף CTR יציב, קו ירוק'},
+      {n:'03 — סימן 2',h:'CPA מתחת לסף היעד',b:'לא ממוצע כללי.\nCPA ב-72 שעות האחרונות.\nזה הנתון שסוגר עסקה.',v:'CPA meter, מחט ירוקה'},
+      {n:'04 — סימן 3',h:'Frequency מתחת ל-2',b:'עוד יש קהל.\nאפשר לסקייל בלי לשרוף Audience.',v:'Frequency gauge 1.4'},
+      {n:'05 — סימן 4',h:'רווח חיובי על הוצאה מוגדלת',b:'לא ROAS.\nרווח אחרי הכל.\nכשזה עובד ב-×2 — מוכנים ל-×3.',v:'Profit chart, ירוק'},
+      {n:'06 — סימן 5',h:'Scale Score מעל 80',b:'כשארבעת הסימנים מתקיימים — הסקור קופץ.\nCLS ENGINE מחשב את זה בשבילך.',v:'Score meter: 83, "Ready to Scale"'},
+      {n:'07 — CTA',h:'CLS ENGINE',b:'מחשב את הסקור בשבילך.\n7 ימים חינם.',v:'Dashboard, כפתור CTA'},
+    ]}),
+    Z5:(av)=>({title:`בזמן שה${av.short} הממוצע בדק קריאייטיב אחד...`,slides:[
+      {n:'01 — כריכה',h:'בזמן שבדקת קריאייטיב אחד...',b:'המתחרה שלך כבר בדק 12.',v:'Counter: ×1 vs. ×12, contrast חזק'},
+      {n:'02 — הפער בזמן',h:'בלי מערכת: שבועות',b:'ממוצע '+av.short+' בלי מערכת: ווינר כל 4–6 שבועות.\nכל שבוע = עלות הזדמנות.',v:'Timeline ארוך, שעון איטי'},
+      {n:'03 — עם מערכת',h:'עם CLS ENGINE: ימים',b:'ווינר כל 3–5 ימים.\nזה פי 5–8 יותר ווינרים.\nפי 5–8 יותר ידע.',v:'Timeline קצר, counter מהיר'},
+      {n:'04 — ריבית דריבית',h:'אפקט ריבית דריבית',b:'כל ווינר מלמד.\nמערכת שלומדת = יתרון שגדל.\nהפער בין '+av.short+' עם/בלי מערכת מצטבר.',v:'Compound curve vs. flat line'},
+      {n:'05 — הפער גדל',h:'כל יום בלי מערכת',b:'= עוד יום שהמתחרה לפניך.\nזה לא הגזמה.\nזה מהירות בדיקות.',v:'Gap chart מתרחב'},
+      {n:'06 — החלטה',h:'עוד שבוע?',b:'אחד מהשניים יהיה לפני.\nשאלה של כלים.',v:'Split: two paths diverging'},
+      {n:'07 — CTA',h:'תתחיל היום',b:'CLS ENGINE — 7 ימים חינם.\nאין סיבה לחכות.',v:'Dashboard, כפתור CTA בולט'},
+    ]}),
+  };
+  return t[ang.id](av);
+}
 
-function buildCreatives() {
-  const all = [];
-  for (const fmt of FORMATS) {
-    for (const ang of ANGLES) {
-      for (const av of AVATARS) {
-        all.push({
-          id: `CLS-${fmt.code}-${ang.id}-${av.id}-V1`,
-          format: fmt,
-          angle: ang,
-          avatar: av,
-          hook: HOOKS[`${ang.id}-${av.id}`],
-          note: (FORMAT_NOTES[fmt.id]||{})[ang.id] || '',
-        });
-      }
-    }
-  }
+function imageContent(ang, av){
+  const hook=HOOKS[ang.id+'-'+av.id];
+  const prompts={
+    Z1:`Dark tech split-screen poster, no faces. LEFT: chaos — burning money icon, red X marks, messy spreadsheet, frustrated silhouette, label "לפני". RIGHT: clean CLS ENGINE dark dashboard, green "Scale Ready" badge, winners trophy, calm metrics, label "אחרי". Hebrew headline top center: "${hook}". Bottom bar purple gradient: "CLS ENGINE — 7 ימים חינם →". Background #070A12, accent #8B5CF6 and #38BDF8. Minimal, professional, dark UI aesthetic.`,
+    Z2:`Dark minimal poster. Center: giant digital timer "72:00" glowing cyan on #070A12 background. Above: small trophy/winner badge icon. Below timer: clean text "ווינר ב-72 שעות — לא 3 שבועות". Hook text top: "${hook}". Bottom purple CTA bar: "CLS ENGINE — 7 ימים חינם →". Monospace numbers, tech aesthetic, #38BDF8 cyan highlight.`,
+    Z3:`Dark split-screen comparison poster. LEFT panel red tint, label "ניחוש": chaotic icons, random arrows, question marks, no structure. RIGHT panel green tint, label "מערכת": ordered flowchart, checkmarks, upward arrow, clean metrics. Center dividing line. Headline: "${hook}". Bottom: "CLS ENGINE — 7 ימים חינם". #070A12 base, #EF4444 left, #22C55E right.`,
+    Z4:`Dark dashboard screenshot design. Large Scale Readiness gauge showing "87" in bright green center. Surrounding data: CTR 4.2% ✓, CPA ₪19 ✓, Frequency 1.3 ✓. "Ready to Scale" green badge prominent. Hebrew overlay: "${hook}". Purple bottom CTA: "גלה את הסקור שלך — 7 ימים חינם". Dark UI, #22C55E green, realistic interface aesthetic.`,
+    Z5:`Dark dramatic poster. Left: single creative icon labeled "×1" with slow-ticking clock. Right: stack of 12 creative icons labeled "×12" with fast counter. Center: VS divider with fire/speed motif. Large headline: "${hook}". Sub: "CLS ENGINE מייצרת ווינרים מהר יותר". Bottom CTA bar. #070A12, high contrast, minimal.`,
+  };
+  const copy={
+    Z1:{h:'כמה קריאייטיבים הוצאת — וכמה ייצרו ROAS?',sub:'CLS ENGINE נותן לך מחזור שלם. Discovery → Test → Winner → Scale. כל שלב ברור.'},
+    Z2:{h:'72 שעות. ווינר אמיתי.',sub:'לא 3 שבועות. לא ניחוש. מחזור בדיקות שמגלה ווינר תוך ימים — לא שבועות.'},
+    Z3:{h:'הפסק לנחש. יש מערכת.',sub:'כל קריאייטיב מתחיל מהיפותזה. כל ווינר מתועד. הידע מצטבר — לא נשכח.'},
+    Z4:{h:'מצאת ווינר? עכשיו — מתי להגדיל?',sub:'Scale Readiness Score אומר לך בדיוק מתי. לא לפני. לא אחרי. בדיוק כשמוכן.'},
+    Z5:{h:'המתחרה שלך כבר בדק 12 קריאייטיבים.',sub:'כל יום בלי מערכת — יום שהוא לפניך. CLS ENGINE סוגר את הפער.'},
+  };
+  return {hook, prompt:prompts[ang.id], copy:copy[ang.id]};
+}
+
+function ugcScript(ang, av){
+  const s={
+    Z1:`[0–4 שניות — Hook]
+תגיד לי משהו.
+
+כמה הוצאת על קריאייטיבים השנה?
+
+[5–18 שניות — כאב]
+עכשיו תחשוב —
+כמה מהם הפכו לווינרים?
+
+ווינר אמיתי. שסקיילת עליו. שהחזיר ROAS.
+
+רוב ${av.short} שאני פוגש
+לא יכולים לענות על זה.
+
+כי אין להם מערכת.
+
+[19–40 שניות — פתרון]
+CLS ENGINE נותן לך מחזור שלם —
+מהיפותזה ל-Winner.
+
+רואה בדיוק מה בבדיקה.
+מה נכשל.
+מתי אתה מוכן לסקייל.
+
+לא תחושות. נתונים.
+
+[41–55 שניות — תוצאה]
+מאז שהתחלתי להשתמש —
+הזמן שלי לווינר ירד
+מ-3 שבועות
+לפחות מ-5 ימים.
+
+[56–60 שניות — CTA]
+7 ימים חינם.
+בלי כרטיס אשראי.
+הלינק בביו.`,
+    Z2:`[0–4 שניות — Hook]
+72 שעות.
+
+זה כמה זמן אמור לקחת למצוא ווינר.
+לא 3 שבועות.
+
+[5–20 שניות — כאב]
+${av.short} שעובד בלי מערכת
+מוציא שבועות על בדיקות
+שלא מלמדות כלום.
+
+כי כל קריאייטיב עולה מאפס.
+אין היפותזה. אין מסגרת.
+רק "בואו נראה מה יקרה."
+
+[21–42 שניות — פתרון]
+עם CLS ENGINE
+אתה מתחיל מהיפותזה.
+מגדיר מה בודקים.
+מקבל סיגנל ב-48 שעות.
+
+הווינר מזוהה.
+Scale Readiness Score מעל 80.
+אתה יודע — מוכן.
+
+[43–56 שניות — תוצאה]
+שבוע ראשון עם המערכת —
+2 ווינרים.
+לפני כן — אחד ב-3 שבועות.
+
+[57–60 שניות — CTA]
+7 ימים חינם.
+הלינק בביו.`,
+    Z3:`[0–4 שניות — Hook]
+יש הבדל אחד בין ${av.short} שמסקייל
+ל${av.short} שנאבק.
+
+לא תקציב.
+לא ניסיון.
+מערכת.
+
+[5–22 שניות — כאב]
+כשאתה מחליט על קריאייטיב
+לפי תחושת בטן —
+אתה לא מנהל מדיה.
+
+אתה מנחש.
+
+וניחוש אומר:
+כל שבוע מתחיל מאפס.
+כל כישלון לא מלמד כלום.
+כל ווינר — מזל.
+
+[23–44 שניות — פתרון]
+CLS ENGINE הוא המעבר
+מניחוש למערכת.
+
+מגדיר היפותזה.
+בודק בצורה מבוקרת.
+המערכת עוקבת.
+מזהה ווינרים.
+אומרת לך מתי לסקייל.
+
+[45–57 שניות — תוצאה]
+אחרי חודש עם מערכת —
+יש לי Winners Library.
+ידע שמצטבר. לא מזל שמתפוגג.
+
+[58–60 שניות — CTA]
+7 ימים חינם. הלינק בביו.`,
+    Z4:`[0–4 שניות — Hook]
+מצאת ווינר?
+
+מזל טוב.
+
+עכשיו השאלה הקשה יותר:
+מתי להגדיל תקציב?
+
+[5–20 שניות — כאב]
+90% מה${av.short} שאני מכיר
+מגדילים מוקדם מדי.
+
+ראו ROAS טוב יומיים.
+קפצו.
+שברו את הווינר.
+חזרו לאפס.
+
+[21–40 שניות — פתרון]
+CLS ENGINE מחשב Scale Readiness Score.
+
+CTR יציב ✓
+CPA מתחת לסף ✓
+Frequency נמוכה ✓
+רווח מוכח ✓
+
+כשהסקור מגיע ל-80+ —
+המערכת אומרת לך: מוכן.
+
+[41–55 שניות — תוצאה]
+פעם אחרונה שמצאתי ווינר —
+חיכיתי ל-82.
+הגדלתי ×3.
+הווינר החזיק.
+
+[56–60 שניות — CTA]
+7 ימים חינם. הלינק בביו.`,
+    Z5:`[0–4 שניות — Hook]
+תן לי לשאול אותך משהו.
+
+בזמן שבדקת קריאייטיב אחד —
+המתחרה שלך בדק כמה?
+
+[5–18 שניות — כאב]
+${av.short} בלי מערכת —
+ווינר כל 3–6 שבועות.
+
+${av.short} עם מערכת —
+ווינר כל 3–5 ימים.
+
+זה פי 6 יותר ווינרים.
+פי 6 יותר Scale.
+פי 6 יותר ידע.
+
+[19–42 שניות — פתרון]
+CLS ENGINE בנוי בשביל ${av.short}
+שרוצה לסגור את הפער.
+
+היפותזות מסודרות.
+בדיקות ממוקדות.
+זיהוי ווינר מהיר.
+Scale בביטחון.
+
+[43–56 שניות — דחיפות]
+כל יום בלי מערכת —
+יום שהמתחרה לפניך.
+
+זה לא ניסיון.
+זה פשוט מהירות.
+
+[57–60 שניות — CTA]
+7 ימים חינם.
+תתחיל היום.`,
+  };
+  return s[ang.id].replace(/\$\{av\.short\}/g, av.short);
+}
+
+function podcastScript(ang, av){
+  const s={
+    Z1:`[מראיין]
+"מה הבעיה הכי גדולה שאתה רואה אצל ${av.short} שמפרסמים?"
+
+[מרואיין — עוצר 3 שניות]
+"תקציב שנשרף בלי מערכת.
+
+מוציאים X אלף בחודש.
+לא יודעים מה עבד.
+לא יודעים מה נכשל.
+כל חודש — אפס."
+
+[מראיין]
+"ואיך פותרים את זה?"
+
+[מרואיין]
+"מחזור בדיקות.
+
+מגדירים היפותזה לפני שיוצא קריאייטיב.
+בודקים בצורה ממוקדת.
+מזהים ווינר. מסקיילים.
+
+CLS ENGINE עושה את זה אוטומטי.
+7 ימים חינם — שווה לבדוק."`,
+    Z2:`[מראיין]
+"כמה זמן אמור לקחת למצוא ווינר?"
+
+[מרואיין]
+"72 שעות.
+
+לא 3 שבועות. לא חודש.
+72 שעות — אם יש לך מערכת."
+
+[מראיין]
+"וברוב המקרים?"
+
+[מרואיין]
+"3 עד 6 שבועות.
+
+כי אין היפותזה ברורה.
+כי בודקים הכל במקביל.
+כי אין מסגרת.
+
+עם CLS ENGINE — 72 שעות.
+7 ימים חינם."`,
+    Z3:`[מראיין]
+"מה ההבדל בין ${av.short} שמוצא ווינרים לבין מי שלא?"
+
+[מרואיין]
+"מערכת.
+
+מי שמוצא — יש לו שאלה ברורה שהוא בודק.
+מי שלא מוצא — מנחש.
+
+ותחושת בטן אף פעם לא מנצחת data."
+
+[מראיין]
+"ואיך בונים מערכת?"
+
+[מרואיין]
+"אפשר ידנית — לוקח חודשים.
+אפשר עם CLS ENGINE — 7 ימים חינם."`,
+    Z4:`[מראיין]
+"מתי מגדילים תקציב על ווינר?"
+
+[מרואיין]
+"זאת השאלה שרוב ${av.short} שואלים אחרי שכבר שברו אותו.
+
+התשובה: כשיש 4 פרמטרים ירוקים במקביל.
+CTR יציב. CPA תחת סף. Frequency נמוכה. רווח מוכח.
+
+כשארבעתם ירוקים — מוכן."
+
+[מראיין]
+"ויש כלי שבודק את זה אוטומטית?"
+
+[מרואיין]
+"CLS ENGINE. Scale Readiness Score.
+7 ימים חינם."`,
+    Z5:`[מראיין]
+"כמה ווינרים בחודש אמור ${av.short} למצוא?"
+
+[מרואיין]
+"תלוי אם יש מערכת.
+
+בלי מערכת: ווינר כל 3–6 שבועות.
+עם מערכת: ווינר כל 3–5 ימים.
+
+זה לא ניסיון. זה מהירות בדיקות."
+
+[מראיין]
+"ואיך מגיעים לשם?"
+
+[מרואיין]
+"CLS ENGINE. מחזור מלא.
+מהיפותזה ל-Scale.
+ב-72 שעות לווינר.
+7 ימים חינם."`,
+  };
+  return s[ang.id].replace(/\$\{av\.short\}/g, av.short);
+}
+
+function demoScript(ang, av){
+  const s={
+    Z1:`[0–3 שניות — טקסט פתיחה]
+"כמה תקציב נשרף בקריאייטיבים שלא עובדים?
+הנה הפתרון."
+
+[4–14 שניות — Discovery]
+📍 ZOOM IN: דף Discovery
+VO: "מגדירים היפותזה — מה בודקים ולמה"
+👆 USER TYPES: hook חדש לקריאייטיב
+🎯 CLICK: "Generate Hypothesis"
+✅ RESULT: היפותזה מופיעה עם פרמטרים ברורים
+
+[15–28 שניות — Testing]
+📍 ZOOM IN: רשימת Hypotheses
+VO: "הקריאייטיב יצא. מסמנים Testing"
+👆 DRAG: status → "Testing"
+📊 LIVE DATA: CTR 3.8%, CPA ₪22 מתעדכנים
+
+[29–40 שניות — Winner]
+📍 ZOOM IN: Winners screen
+VO: "48 שעות. סיגנל חזק. זה ווינר"
+✅ BADGE: "Winner" badge animate in עם glow ירוק
+🏆 COUNTER: Winners +1 → 4
+
+[41–52 שניות — Scale Score]
+📍 ZOOM IN: Scale Readiness card
+VO: "Scale Score: 84. מוכן להגדיל"
+📈 ANIMATION: progress bar → 84
+🟢 STATUS: "Ready to Scale" מופיע
+
+[53–60 שניות — CTA]
+📍 Full dashboard
+TEXT: "מ-chaos לווינר בפחות מ-5 ימים"
+CTA OVERLAY: "CLS ENGINE — 7 ימים חינם →"`,
+    Z2:`[0–3 שניות — פתיחה]
+"72 שעות לווינר.
+כך נראה המחזור."
+
+[4–15 שניות — שלב 1]
+📍 Discovery page
+🕐 TIMESTAMP: Day 0, 09:00
+VO: "שלב 1: היפותזה ברורה"
+👆 TYPING: שאלת בדיקה ספציפית
+✅ STATUS: Hypothesis created
+
+[16–28 שניות — שלב 2]
+📍 Testing view
+🕐 TIMESTAMP: Day 1, 14:00
+VO: "שלב 2: קריאייטיב חי — נתונים נכנסים"
+📊 LIVE METRICS: CTR 2.1% → 3.4% → 4.2%
+
+[29–40 שניות — שלב 3]
+📍 Winners detection
+🕐 TIMESTAMP: Day 2, 08:00 (42 שעות)
+VO: "שלב 3: סיגנל. זה ווינר"
+⚡ WINNER BADGE: flashes in
+
+[41–52 שניות — שלב 4]
+📍 Scale Readiness
+🕐 TIMESTAMP: Day 3, 10:00
+VO: "שלב 4: Score 86. מגדילים ×3"
+📈 BUDGET: animates up ×3
+
+[53–60 שניות — CTA]
+"72 שעות. ווינר אמיתי.
+7 ימים חינם →"`,
+    Z3:`[0–3 שניות — פתיחה]
+"הפסק לנחש.
+הנה איך נראית מערכת."
+
+[4–18 שניות — Split screen]
+📍 SPLIT SCREEN COMPARISON
+LEFT (אדום): "לפני — ניחוש"
+- Spreadsheet מבולגן, 12 קמפיינים פתוחים
+- אין היפותזה, אין סדר
+RIGHT (ירוק): "אחרי — CLS ENGINE"
+- Dashboard נקי, hypotheses מסודרות
+
+[19–35 שניות — Demo]
+📍 CLS Dashboard
+VO: "היפותזות מוגדרות. סטטוסים ברורים. ידע מצטבר"
+COUNTER: 0 → 23 hypotheses animate
+BADGES: 4 winners מופיעות
+
+[36–48 שניות — השוואת מספרים]
+📍 Stats panel
+VO: "ניחוש: ווינר כל 4 שבועות. מערכת: ווינר כל 5 ימים"
+ANIMATION: timeline comparison, gap מודגש
+
+[49–60 שניות — CTA]
+"CLS ENGINE — מניחוש למערכת
+7 ימים חינם"`,
+    Z4:`[0–3 שניות — פתיחה]
+"מצאת ווינר?
+עכשיו — מתי להגדיל?"
+
+[4–22 שניות — 4 Metrics]
+📍 Scale Readiness card
+VO: "4 פרמטרים. כולם ירוקים — מוכן"
+📊 METRICS POPULATE ONE BY ONE:
+  • CTR 4.1% ✓ (גרף קצר)
+  • CPA ₪19 ✓ (מחט)
+  • Frequency 1.4 ✓ (meter)
+  • Profit ₪2,840 ✓ (counter)
+
+[23–37 שניות — Score Animation]
+📍 Score gauge center screen
+VO: "ארבעתם ירוקים — Score קופץ ל-87"
+ANIMATION: gauge 0 → 87, אדום → צהוב → ירוק
+LABEL: "Ready to Scale" glows in
+
+[38–50 שניות — פעולה]
+📍 Budget action
+VO: "Score 87. מגדילים ×3 — בביטחון"
+CLICK: budget input ×3
+CONFIRM: modal "Scale מאושר ✓"
+
+[51–60 שניות — CTA]
+"לא ניחוש. נתונים.
+CLS ENGINE — 7 ימים חינם"`,
+    Z5:`[0–3 שניות — פתיחה]
+"המתחרה שלך בדק 12 קריאייטיבים.
+אתה בדקת כמה?"
+
+[4–20 שניות — Counter battle]
+📍 SPLIT SCREEN
+LEFT: "בלי מערכת"
+COUNTER: 1... 2... 3 (איטי, 15 שניות ל-3)
+LABEL: "ווינר כל 4 שבועות"
+RIGHT: "עם CLS ENGINE"
+COUNTER: 1→2→3→4→5→6 (5 שניות)
+LABEL: "ווינר כל 5 ימים"
+
+[21–35 שניות — System fast tour]
+📍 Dashboard montage מהיר
+VO: "Discovery → Test → Winner → Scale. מחזור שלם"
+FAST CUTS: כל שלב 2–3 שניות
+SPEED LINES: תחושת velocity
+
+[36–50 שניות — Compound effect]
+📍 Growth chart
+VO: "כל ווינר מלמד. הידע מצטבר. הפער גדל"
+CHART: exponential vs. flat line, gap מתרחב
+
+[51–60 שניות — CTA]
+"תסגור את הפער.
+CLS ENGINE — 7 ימים חינם"`,
+  };
+  return s[ang.id].replace(/\$\{av\.short\}/g, av.short);
+}
+
+/* ── BUILD CREATIVES ── */
+function build(){
+  const all=[];
+  for(const f of FMT) for(const a of ANG) for(const av of AV)
+    all.push({id:`CLS-${f.code}-${a.id}-${av.id}-V1`,format:f,angle:a,avatar:av,hook:HOOKS[a.id+'-'+av.id]});
   return all;
 }
+const ALL=build();
 
-const ALL_CREATIVES = buildCreatives();
-
-/* ─────────────────── EQUATION BOXES ─────────────────── */
-
-function buildEquation() {
-  // Angles box
-  const angEl = document.getElementById('eq-angles');
-  angEl.innerHTML = `
+/* ── EQUATION ── */
+function buildEq(){
+  document.getElementById('eq-angles').innerHTML=`
     <div class="eq-count" style="color:#8B5CF6">5</div>
     <div class="eq-label">זוויות</div>
-    <div class="eq-items">
-      ${ANGLES.map(a=>`<div class="eq-item"><span class="eq-dot" style="background:${a.color}"></span>${a.short}</div>`).join('')}
-    </div>`;
-
-  const avEl = document.getElementById('eq-avatars');
-  avEl.innerHTML = `
+    <div class="eq-items">${ANG.map(a=>`<div class="eq-item"><span class="eq-dot" style="background:${a.color}"></span>${a.short}</div>`).join('')}</div>`;
+  document.getElementById('eq-avatars').innerHTML=`
     <div class="eq-count" style="color:#38BDF8">5</div>
     <div class="eq-label">אווטארים</div>
-    <div class="eq-items">
-      ${AVATARS.map(a=>`<div class="eq-item"><span style="font-size:14px">${a.icon}</span>${a.short}</div>`).join('')}
-    </div>`;
-
-  const fmtEl = document.getElementById('eq-formats');
-  fmtEl.innerHTML = `
+    <div class="eq-items">${AV.map(a=>`<div class="eq-item"><span style="font-size:13px">${a.icon}</span>${a.short}</div>`).join('')}</div>`;
+  document.getElementById('eq-formats').innerHTML=`
     <div class="eq-count" style="color:#22C55E">5</div>
     <div class="eq-label">פורמטים</div>
-    <div class="eq-items">
-      ${FORMATS.map(f=>`<div class="eq-item"><span class="eq-dot" style="background:${f.color}"></span>${f.name}</div>`).join('')}
-    </div>`;
+    <div class="eq-items">${FMT.map(f=>`<div class="eq-item"><span class="eq-dot" style="background:${f.color}"></span>${f.name}</div>`).join('')}</div>`;
 }
 
-/* ─────────────────── MATRIX ─────────────────── */
-
-let activeFormat = 'F1';
-
-function buildMatrixTabs() {
-  const tabsEl = document.getElementById('format-tabs');
-  tabsEl.innerHTML = FORMATS.map(f => `
-    <button class="tab ${f.id===activeFormat?'active':''}"
-      style="${f.id===activeFormat?`color:${f.color};border-color:${f.color};background:${f.bg}`:''}"
-      onclick="selectFormat('${f.id}')">
-      ${f.name}
-    </button>
-  `).join('');
+/* ── MATRIX ── */
+let activeFmt='F1';
+function buildTabs(){
+  document.getElementById('format-tabs').innerHTML=FMT.map(f=>`
+    <button class="tab ${f.id===activeFmt?'active':''}"
+      style="${f.id===activeFmt?`color:${f.color};border-color:${f.color};background:${f.bg}`:''}"
+      onclick="selFmt('${f.id}')">${f.name}</button>`).join('');
 }
-
-function selectFormat(fid) {
-  activeFormat = fid;
-  buildMatrixTabs();
-  buildMatrixTable();
-}
-
-function buildMatrixTable() {
-  const fmt = FORMATS.find(f=>f.id===activeFormat);
-  const table = document.getElementById('matrix-table');
-
-  // Header row
-  let html = '<thead><tr>';
-  html += `<th class="angle-header">זווית \\ אווטאר</th>`;
-  AVATARS.forEach(av => {
-    html += `<th class="avatar-th"><span class="av-icon">${av.icon}</span><span class="av-name">${av.short}</span></th>`;
-  });
-  html += '</tr></thead><tbody>';
-
-  // Rows per angle
-  ANGLES.forEach(ang => {
-    html += '<tr>';
-    html += `<td class="angle-cell">
-      <div class="angle-label">
-        <span class="angle-dot" style="background:${ang.color}"></span>
-        <div>
-          <div class="angle-name" style="color:${ang.color}">${ang.short}</div>
-          <div class="angle-id">${ang.id}</div>
-        </div>
-      </div>
-    </td>`;
-
-    AVATARS.forEach(av => {
-      const creative = ALL_CREATIVES.find(c => c.format.id===activeFormat && c.angle.id===ang.id && c.avatar.id===av.id);
-      html += `<td>
-        <div class="creative-cell" onclick="openModal('${creative.id}')">
-          <div class="cell-id" style="color:${fmt.color}">${creative.id}</div>
-          <div class="cell-hook">${creative.hook}</div>
-          <div class="cell-note">${creative.note}</div>
-        </div>
-      </td>`;
-    });
-
-    html += '</tr>';
-  });
-
-  html += '</tbody>';
-  table.innerHTML = html;
-}
-
-/* ─────────────────── GRID ─────────────────── */
-
-let filterAngle = 'all', filterAvatar = 'all', filterFormat = 'all';
-
-function buildFilters() {
-  // Angles filter
-  const angF = document.getElementById('filter-angles');
-  angF.innerHTML = `<button class="chip active" style="color:#F8FAFC;border-color:#94A3B8" data-type="angle" data-val="all" onclick="setFilter('angle','all')">הכל</button>` +
-    ANGLES.map(a=>`<button class="chip" style="" data-type="angle" data-val="${a.id}" onclick="setFilter('angle','${a.id}')">${a.short}</button>`).join('');
-  angF.style.display='flex'; angF.style.gap='6px'; angF.style.flexWrap='wrap';
-
-  // Avatars filter
-  const avF = document.getElementById('filter-avatars');
-  avF.innerHTML = `<button class="chip active" style="color:#F8FAFC;border-color:#94A3B8" data-type="avatar" data-val="all" onclick="setFilter('avatar','all')">הכל</button>` +
-    AVATARS.map(a=>`<button class="chip" data-type="avatar" data-val="${a.id}" onclick="setFilter('avatar','${a.id}')">${a.icon} ${a.short}</button>`).join('');
-  avF.style.display='flex'; avF.style.gap='6px'; avF.style.flexWrap='wrap';
-
-  // Formats filter
-  const fmtF = document.getElementById('filter-formats');
-  fmtF.innerHTML = `<button class="chip active" style="color:#F8FAFC;border-color:#94A3B8" data-type="format" data-val="all" onclick="setFilter('format','all')">הכל</button>` +
-    FORMATS.map(f=>`<button class="chip" data-type="format" data-val="${f.id}" onclick="setFilter('format','${f.id}')">${f.name}</button>`).join('');
-  fmtF.style.display='flex'; fmtF.style.gap='6px'; fmtF.style.flexWrap='wrap';
-}
-
-function setFilter(type, val) {
-  if (type==='angle') filterAngle = val;
-  if (type==='avatar') filterAvatar = val;
-  if (type==='format') filterFormat = val;
-
-  // Update chip styles
-  document.querySelectorAll(`.chip[data-type="${type}"]`).forEach(ch => {
-    const isActive = ch.dataset.val === val;
-    ch.classList.toggle('active', isActive);
-    if (isActive) {
-      let color = '#F8FAFC', borderColor = '#94A3B8';
-      if (type==='angle' && val!=='all') { const a=ANGLES.find(x=>x.id===val); color=a.color; borderColor=a.color; }
-      if (type==='format' && val!=='all') { const f=FORMATS.find(x=>x.id===val); color=f.color; borderColor=f.color; }
-      ch.style.color = color;
-      ch.style.borderColor = borderColor;
-    } else {
-      ch.style.color = '';
-      ch.style.borderColor = '';
+function selFmt(id){activeFmt=id;buildTabs();buildMatrix();}
+function buildMatrix(){
+  const fmt=FMT.find(f=>f.id===activeFmt);
+  let h=`<thead><tr><th class="angle-h">זווית \\ אווטאר</th>
+    ${AV.map(av=>`<th class="av-th"><span class="avi">${av.icon}</span><span class="avn">${av.short}</span></th>`).join('')}
+    </tr></thead><tbody>`;
+  for(const ang of ANG){
+    h+=`<tr><td class="angle-td"><div class="angle-lbl">
+      <span class="angle-dot" style="background:${ang.color}"></span>
+      <div><div class="angle-name" style="color:${ang.color}">${ang.short}</div>
+      <div class="angle-id">${ang.id}</div></div></div></td>`;
+    for(const av of AV){
+      const c=ALL.find(x=>x.format.id===activeFmt&&x.angle.id===ang.id&&x.avatar.id===av.id);
+      h+=`<td><div class="cc" onclick="openModal('${c.id}')">
+        <div class="cc-id" style="color:${fmt.color}">${c.id}</div>
+        <div class="cc-hook">${c.hook}</div>
+        <div class="cc-note">${fmt.desc}</div>
+      </div></td>`;
     }
-  });
+    h+=`</tr>`;
+  }
+  document.getElementById('matrix-table').innerHTML=h+'</tbody>';
+}
 
+/* ── GRID ── */
+let fA='all',fB='all',fC='all';
+function buildFilters(){
+  const mk=(el,items,type,color)=>{
+    el.innerHTML=`<button class="chip active" style="color:var(--text);border-color:var(--dim)" data-v="all" onclick="sf('${type}','all')">הכל</button>`
+      +items.map(i=>`<button class="chip" data-v="${i.id}" onclick="sf('${type}','${i.id}')">${i.icon||''}${i.short}</button>`).join('');
+    el.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+  };
+  mk(document.getElementById('fa'),ANG,'A');
+  mk(document.getElementById('fb'),AV,'B');
+  mk(document.getElementById('fc'),FMT,'C');
+}
+function sf(type,val){
+  if(type==='A')fA=val;
+  if(type==='B')fB=val;
+  if(type==='C')fC=val;
+  const map={A:ANG,B:AV,C:FMT};
+  document.querySelectorAll(`[data-v]`).forEach(ch=>{
+    // reset all same-type chips
+  });
+  const elId={A:'fa',B:'fb',C:'fc'};
+  document.querySelectorAll(`#${elId[type]} .chip`).forEach(ch=>{
+    const active=ch.dataset.v===val;
+    ch.classList.toggle('active',active);
+    if(active){
+      let col='var(--text)',bc='var(--dim)';
+      if(type==='A'&&val!=='all'){const a=ANG.find(x=>x.id===val);col=a.color;bc=a.color;}
+      if(type==='C'&&val!=='all'){const f=FMT.find(x=>x.id===val);col=f.color;bc=f.color;}
+      ch.style.color=col;ch.style.borderColor=bc;
+    }else{ch.style.color='';ch.style.borderColor='';}
+  });
   buildGrid();
 }
-
-function buildGrid() {
-  const filtered = ALL_CREATIVES.filter(c => {
-    if (filterAngle!=='all' && c.angle.id!==filterAngle) return false;
-    if (filterAvatar!=='all' && c.avatar.id!==filterAvatar) return false;
-    if (filterFormat!=='all' && c.format.id!==filterFormat) return false;
+function buildGrid(){
+  const filtered=ALL.filter(c=>{
+    if(fA!=='all'&&c.angle.id!==fA)return false;
+    if(fB!=='all'&&c.avatar.id!==fB)return false;
+    if(fC!=='all'&&c.format.id!==fC)return false;
     return true;
   });
-
-  const count = document.getElementById('grid-count');
-  count.innerHTML = `מציג <strong>${filtered.length}</strong> מתוך <strong>125</strong> קריאייטיבים`;
-
-  const grid = document.getElementById('cards-grid');
-  grid.innerHTML = filtered.map(c => `
+  document.getElementById('gc').innerHTML=`מציג <strong>${filtered.length}</strong> מתוך <strong>125</strong> קריאייטיבים`;
+  document.getElementById('cg').innerHTML=filtered.map(c=>`
     <div class="card" onclick="openModal('${c.id}')">
       <div class="card-id">${c.id}</div>
       <div class="card-badges">
         <span class="badge" style="color:${c.format.color};background:${c.format.bg};border-color:${c.format.color}40">${c.format.name}</span>
         <span class="badge" style="color:${c.angle.color};background:${c.angle.bg};border-color:${c.angle.color}40">${c.angle.short}</span>
-        <span class="badge" style="color:#94A3B8;background:#1e2d4530;border-color:#1e2d45">${c.avatar.icon} ${c.avatar.short}</span>
+        <span class="badge" style="color:var(--dim);background:#1e2d4530;border-color:var(--border)">${c.avatar.icon} ${c.avatar.short}</span>
       </div>
       <div class="card-hook">${c.hook}</div>
       <div class="card-note">${c.format.desc}</div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-/* ─────────────────── MODAL ─────────────────── */
+/* ── MODAL ── */
+function copyText(text,btn){
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✓ הועתק!';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent=btn.dataset.orig;btn.classList.remove('copied');},2000);
+  });
+}
 
-function openModal(id) {
-  const c = ALL_CREATIVES.find(x=>x.id===id);
-  if (!c) return;
-
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-header">
-      <div>
-        <div class="modal-id">${c.id}</div>
+function renderModalContent(c){
+  const f=c.format,a=c.angle,av=c.avatar;
+  let body='';
+  if(f.id==='F1'){
+    const data=carousel(a,av);
+    body=`<div class="msec"><div class="msec-title">כותרת הקרוסלה</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px">${data.title}</div>
+      <div class="slides">${data.slides.map(s=>`
+        <div class="slide">
+          <div class="slide-num">${s.n}</div>
+          <div class="slide-headline">${s.h}</div>
+          <div class="slide-body">${s.b}</div>
+          <div class="slide-visual">📐 ויזואל: ${s.v}</div>
+        </div>`).join('')}
+      </div></div>`;
+  } else if(f.id==='F2'){
+    const data=imageContent(a,av);
+    body=`<div class="msec">
+      <div class="msec-title">קופי</div>
+      <div class="image-copy">
+        <div class="copy-label">${data.copy.h}</div>
+        <div class="copy-value">${data.copy.sub}</div>
       </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-badges">
-      <span class="modal-badge" style="color:${c.format.color};background:${c.format.bg};border-color:${c.format.color}60">${c.format.name}</span>
-      <span class="modal-badge" style="color:${c.angle.color};background:${c.angle.bg};border-color:${c.angle.color}60">${c.angle.name}</span>
-      <span class="modal-badge" style="color:#94A3B8;background:#1e2d4530;border-color:#1e2d45">${c.avatar.icon} ${c.avatar.name}</span>
-    </div>
-    <div class="modal-section">
-      <div class="modal-section-title">הוק</div>
-      <div class="modal-hook">${c.hook}</div>
-    </div>
-    <div class="modal-section">
-      <div class="modal-section-title">כאב האווטאר</div>
-      <div class="modal-body">${c.avatar.pain}</div>
-    </div>
-    <div class="modal-section">
-      <div class="modal-section-title">הוראות ייצור</div>
-      <div class="modal-body">${c.format.desc}<br>${c.note}</div>
-    </div>
-    <div class="modal-cta">CTA: "התחילו עכשיו — 7 ימים חינם"</div>
-  `;
-  document.getElementById('modal-overlay').classList.add('open');
+      <div class="msec-title" style="margin-top:16px">פרומפט ל-AI Image</div>
+      <div class="prompt-box" id="prompt-${c.id}">${data.prompt}</div>
+      <button class="copy-btn" style="margin-top:10px" data-orig="📋 העתק פרומפט" onclick="copyText(document.getElementById('prompt-${c.id}').textContent,this)">📋 העתק פרומפט</button>
+    </div>`;
+  } else if(f.id==='F3'){
+    const script=ugcScript(a,av);
+    body=`<div class="msec">
+      <div class="msec-title">תסריט מלא — 60 שניות</div>
+      <button class="copy-btn" data-orig="📋 העתק תסריט" onclick="copyText(document.getElementById('scr-${c.id}').textContent,this)">📋 העתק תסריט</button>
+      <div class="script-block" id="scr-${c.id}">${script}</div>
+    </div>`;
+  } else if(f.id==='F4'){
+    const script=podcastScript(a,av);
+    body=`<div class="msec">
+      <div class="msec-title">תסריט פודקאסט — 45 שניות</div>
+      <button class="copy-btn" data-orig="📋 העתק תסריט" onclick="copyText(document.getElementById('scr-${c.id}').textContent,this)">📋 העתק תסריט</button>
+      <div class="script-block" id="scr-${c.id}">${script}</div>
+    </div>`;
+  } else if(f.id==='F5'){
+    const script=demoScript(a,av);
+    body=`<div class="msec">
+      <div class="msec-title">תסריט Demo Reel — 60 שניות</div>
+      <button class="copy-btn" data-orig="📋 העתק תסריט" onclick="copyText(document.getElementById('scr-${c.id}').textContent,this)">📋 העתק תסריט</button>
+      <div class="script-block" id="scr-${c.id}">${script}</div>
+    </div>`;
+  }
+  return body;
 }
 
-function closeModal(e) {
-  if (e && e.target !== document.getElementById('modal-overlay')) return;
-  document.getElementById('modal-overlay').classList.remove('open');
+function openModal(id){
+  const c=ALL.find(x=>x.id===id);if(!c)return;
+  document.getElementById('mc').innerHTML=`
+    <div class="mhead">
+      <div><div class="mid">${c.id}</div></div>
+      <button class="mclose" onclick="document.getElementById('mo').classList.remove('open')">✕</button>
+    </div>
+    <div class="mbadges">
+      <span class="mbadge" style="color:${c.format.color};background:${c.format.bg};border-color:${c.format.color}60">${c.format.name}</span>
+      <span class="mbadge" style="color:${c.angle.color};background:${c.angle.bg};border-color:${c.angle.color}60">${c.angle.name}</span>
+      <span class="mbadge" style="color:var(--dim);background:#1e2d4530;border-color:var(--border)">${c.avatar.icon} ${c.avatar.name}</span>
+    </div>
+    <div class="msec">
+      <div class="msec-title">הוק</div>
+      <div class="mhook">${c.hook}</div>
+    </div>
+    <div class="msec">
+      <div class="msec-title">כאב האווטאר</div>
+      <div style="font-size:13px;color:var(--dim)">${c.avatar.pain}</div>
+    </div>
+    ${renderModalContent(c)}
+    <div class="mcta">CTA: "התחילו עכשיו — 7 ימים חינם, בלי כרטיס אשראי"</div>`;
+  document.getElementById('mo').classList.add('open');
 }
+function closeModal(e){if(e.target===document.getElementById('mo'))document.getElementById('mo').classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('mo').classList.remove('open');});
 
-document.addEventListener('keydown', e => { if(e.key==='Escape') document.getElementById('modal-overlay').classList.remove('open'); });
-
-/* ─────────────────── INIT ─────────────────── */
-
-buildEquation();
-buildMatrixTabs();
-buildMatrixTable();
-buildFilters();
-buildGrid();
+/* ── INIT ── */
+buildEq();buildTabs();buildMatrix();buildFilters();buildGrid();
 </script>
 </body>
 </html>

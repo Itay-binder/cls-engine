@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,10 +33,11 @@ const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Onboarding", href: "/onboarding", icon: Sparkles },
   { label: "Creative Map", href: "/map", icon: Map },
-  { label: "Creative Machine", href: "/creative", icon: Wand2 },
+  { label: "Media Library", href: "/media", icon: Wand2 },
   { label: "Winners", href: "/winners", icon: Trophy },
   { label: "LTV Engine", href: "/ltv", icon: TrendingUp },
   { label: "Scale Readiness", href: "/scale", icon: Rocket },
+  { label: "Pricing", href: "/pricing", icon: CreditCard },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

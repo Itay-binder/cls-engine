@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users,
   Zap,
@@ -14,6 +14,10 @@ import {
   ArrowRight,
   CheckCircle2,
   Lightbulb,
+  RotateCcw,
+  Upload,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,7 +26,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
+import {
+  saveCreativeSession,
+  loadCreativeSession,
+  loadCreativeSessionLocal,
+  clearCreativeSession,
+} from '@/lib/creative-map-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,10 +76,16 @@ interface CreativeBrief {
 
 interface BusinessProfile {
   id: string;
-  product_name: string | null;
-  niche: string | null;
-  target_market: string | null;
-  offer_type: string | null;
+  business_name?: string | null;
+  product_description: string | null;
+  current_offer: string | null;
+  price_range: string | null;
+  market_notes: string | null;
+  // legacy fields kept for backward compat with old Supabase select
+  product_name?: string | null;
+  niche?: string | null;
+  target_market?: string | null;
+  offer_type?: string | null;
 }
 
 interface CreativeMapState {
@@ -75,9 +98,11 @@ interface CreativeMapState {
   selectedAngleIds: string[];
   concepts: string[];
   businessProfile: BusinessProfile | null;
+  workspaceId: string | null;
   activeCell: { avatarId: string; angleId: string; concept: string } | null;
   generatingCreative: boolean;
   currentCreative: CreativeBrief | null;
+  error: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -366,11 +391,29 @@ function Step1Avatars({
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    const businessContext = state.businessProfile?.product_name ?? 'business';
-    const avatars = generateMockAvatars(state.avatarCount, businessContext);
-    setState((prev) => ({ ...prev, avatars, selectedAvatarIds: avatars.map((a) => a.id) }));
-    setIsGenerating(false);
+    setState((prev) => ({ ...prev, error: null }));
+    try {
+      const res = await fetch('/api/ai/avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessProfile: state.businessProfile,
+          count: state.avatarCount,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        setState((prev) => ({ ...prev, error: err.error ?? 'Avatar generation failed' }));
+        return;
+      }
+      const avatars = await res.json() as Avatar[];
+      setState((prev) => ({ ...prev, avatars, selectedAvatarIds: avatars.map((a) => a.id), error: null }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error';
+      setState((prev) => ({ ...prev, error: msg }));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const toggleAvatar = (id: string) => {
@@ -610,12 +653,35 @@ function Step2Angles({
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    const angles = selectedAvatars.flatMap((avatar) =>
-      generateMockAngles(avatar.id, avatar.name, state.angleCount)
-    );
-    setState((prev) => ({ ...prev, angles, selectedAngleIds: angles.map((a) => a.id) }));
-    setIsGenerating(false);
+    setState((prev) => ({ ...prev, error: null }));
+    try {
+      const results = await Promise.all(
+        selectedAvatars.map((avatar) =>
+          fetch('/api/ai/angles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              avatar,
+              businessProfile: state.businessProfile,
+              count: state.angleCount,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const err = await res.json() as { error?: string };
+              throw new Error(err.error ?? `Angles failed for ${avatar.name}`);
+            }
+            return res.json() as Promise<Angle[]>;
+          })
+        )
+      );
+      const angles = results.flat();
+      setState((prev) => ({ ...prev, angles, selectedAngleIds: angles.map((a) => a.id), error: null }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Angle generation failed';
+      setState((prev) => ({ ...prev, error: msg }));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const toggleAngle = (id: string) => {
@@ -982,9 +1048,10 @@ function CreativeDrawer({
 }: {
   state: CreativeMapState;
   onClose: () => void;
-  onSave: (brief: CreativeBrief) => void;
+  onSave: (brief: CreativeBrief) => Promise<boolean>;
 }) {
   const [showImagePrompt, setShowImagePrompt] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   if (!state.activeCell || !state.currentCreative) return null;
@@ -993,10 +1060,12 @@ function CreativeDrawer({
   const avatar = state.avatars.find((a) => a.id === state.activeCell!.avatarId);
   const angle = state.angles.find((a) => a.id === state.activeCell!.angleId);
 
-  const handleSave = () => {
-    onSave(brief);
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(brief);
+    setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   return (
@@ -1116,10 +1185,12 @@ function CreativeDrawer({
             variant="outline"
             className="flex-1"
             onClick={handleSave}
-            disabled={saved}
+            disabled={saving || saved}
           >
             {saved ? (
               <><CheckCircle2 className="w-4 h-4 mr-1.5 text-green-400" /> Saved!</>
+            ) : saving ? (
+              <><span className="w-4 h-4 mr-1.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" /> Saving...</>
             ) : (
               <><Save className="w-4 h-4 mr-1.5" /> Save to Library</>
             )}
@@ -1151,34 +1222,63 @@ function Step4Matrix({
   const selectedAngles = state.angles.filter((a) => state.selectedAngleIds.includes(a.id));
   const totalCombinations = selectedAvatars.length * selectedAngles.length * state.concepts.length;
 
-  const handleCellClick = (avatarId: string, angleId: string, concept: string) => {
+  const handleCellClick = async (avatarId: string, angleId: string, concept: string) => {
     const avatar = state.avatars.find((a) => a.id === avatarId)!;
     const angle = state.angles.find((a) => a.id === angleId)!;
-    const brief = generateMockCreativeBrief(avatar, angle, concept);
 
     setState((prev) => ({
       ...prev,
       activeCell: { avatarId, angleId, concept },
-      currentCreative: brief,
-      generatingCreative: false,
+      generatingCreative: true,
+      currentCreative: null,
+      error: null,
     }));
+
+    try {
+      const res = await fetch('/api/ai/creative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avatar,
+          angle,
+          concept,
+          businessProfile: state.businessProfile,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        setState((prev) => ({ ...prev, generatingCreative: false, error: err.error ?? 'Creative generation failed' }));
+        return;
+      }
+      const brief = await res.json() as CreativeBrief;
+      setState((prev) => ({ ...prev, generatingCreative: false, currentCreative: brief, error: null }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error';
+      setState((prev) => ({ ...prev, generatingCreative: false, error: msg }));
+    }
   };
 
-  const handleSaveToLibrary = async (brief: CreativeBrief) => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from('creative_assets').insert({
-      user_id: user.id,
-      title: `${brief.avatarName} — ${brief.angleName} — ${brief.concept}`,
-      hook: brief.hook,
-      script: brief.script,
-      caption: brief.caption,
-      visual_direction: brief.visualDirection,
-      production_notes: brief.productionNotes,
-      concept_type: brief.concept,
-    });
+  const handleSaveToLibrary = async (brief: CreativeBrief): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/creative/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${brief.avatarName} — ${brief.angleName} — ${brief.concept}`,
+          hook: brief.hook,
+          script: brief.script,
+          caption: brief.caption,
+          visual_prompt: brief.visualPrompt,
+          production_notes: brief.productionNotes,
+          avatar_name: brief.avatarName,
+          angle_name: brief.angleName,
+          concept: brief.concept,
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -1321,9 +1421,11 @@ export default function CreativeMapPage() {
     selectedAngleIds: [],
     concepts: ALL_CONCEPTS.slice(0, 6).map((c) => c.name),
     businessProfile: null,
+    workspaceId: null,
     activeCell: null,
     generatingCreative: false,
     currentCreative: null,
+    error: null,
   });
 
   // Load business profile on mount
