@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
+import { getUserIntegrations } from '@/lib/user-integrations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,10 +123,13 @@ async function callWithJsonRetry(
 // ─── POST /api/ai/angles ──────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const userResult = await getUserIntegrations();
+  if (!userResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const apiKey = userResult.integrations.anthropic_api_key;
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'AI not configured', setupUrl: '/settings' },
+      { error: 'Anthropic API key not configured. Add it in Settings → Integrations.', setupUrl: '/settings' },
       { status: 503 }
     );
   }

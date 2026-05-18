@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getUserIntegrations } from '@/lib/user-integrations';
 
 const BASE_URL = 'https://graph.facebook.com/v21.0';
-
-// ─── Meta API raw types ────────────────────────────────────────────────────────
 
 interface MetaCreative {
   id: string;
@@ -49,8 +48,6 @@ interface MetaInsightsApiResponse {
   paging?: { next?: string };
 }
 
-// ─── Normalized output type ────────────────────────────────────────────────────
-
 export interface NormalizedAd {
   id: string;
   name: string;
@@ -66,8 +63,6 @@ export interface NormalizedAd {
   conversions: number;
   roas: number;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function parseNum(v: string | undefined): number {
   if (!v) return 0;
@@ -90,23 +85,21 @@ function extractRoas(purchase_roas?: MetaInsightRow['purchase_roas']): number {
   return parseNum(omni?.value ?? purchase_roas[0]?.value);
 }
 
-// ─── Route handler ─────────────────────────────────────────────────────────────
-
 export async function GET(request: Request) {
-  const token = process.env.META_ACCESS_TOKEN;
-  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const userResult = await getUserIntegrations();
+  if (!userResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { meta_access_token: token, meta_ad_account_id: adAccountId } = userResult.integrations;
   if (!token || !adAccountId) {
     return NextResponse.json(
-      { error: 'META_ACCESS_TOKEN or META_AD_ACCOUNT_ID not configured' },
-      { status: 500 }
+      { error: 'Meta credentials not configured. Add them in Settings → Integrations.' },
+      { status: 503 }
     );
   }
 
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get('limit') ?? '50';
 
-  // ── 1. Fetch ads list with creative fields ─────────────────────────────────
   const adFields = 'id,name,status,creative{id,name,thumbnail_url,image_url,video_id}';
   const adsUrl = `${BASE_URL}/${adAccountId}/ads?fields=${adFields}&limit=${limit}&access_token=${token}`;
 
@@ -114,12 +107,8 @@ export async function GET(request: Request) {
   try {
     const res = await fetch(adsUrl, { cache: 'no-store' });
     const json = (await res.json()) as MetaAdsApiResponse;
-
     if (json.error) {
-      return NextResponse.json(
-        { error: json.error.message, code: json.error.code },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: json.error.message, code: json.error.code }, { status: 502 });
     }
     adsData = json.data ?? [];
   } catch (err) {
@@ -127,54 +116,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Failed to fetch ads: ${message}` }, { status: 502 });
   }
 
-  // ── 2. Fetch insights for all ads (account level, broken out by ad) ────────
-  const insightFields =
-    'ad_id,ad_name,impressions,clicks,ctr,cpc,cpm,spend,actions,purchase_roas';
+  const insightFields = 'ad_id,ad_name,impressions,clicks,ctr,cpc,cpm,spend,actions,purchase_roas';
   const insightsUrl =
     `${BASE_URL}/${adAccountId}/insights` +
-    `?fields=${insightFields}` +
-    `&date_preset=last_30d` +
-    `&level=ad` +
-    `&limit=${limit}` +
-    `&access_token=${token}`;
+    `?fields=${insightFields}&date_preset=last_30d&level=ad&limit=${limit}&access_token=${token}`;
 
   const insightsMap = new Map<string, MetaInsightRow>();
   try {
     const res = await fetch(insightsUrl, { cache: 'no-store' });
     const json = (await res.json()) as MetaInsightsApiResponse;
-
-    if (json.error) {
-      // Insights failure is non-fatal — we'll merge with zeros
-      console.error('[meta/ads] insights error:', json.error.message);
-    } else {
-      for (const row of json.data ?? []) {
-        insightsMap.set(row.ad_id, row);
-      }
+    if (!json.error) {
+      for (const row of json.data ?? []) insightsMap.set(row.ad_id, row);
     }
-  } catch (err) {
-    console.error('[meta/ads] failed to fetch insights:', err);
+  } catch {
+    // non-fatal
   }
 
-  // ── 3. Merge ───────────────────────────────────────────────────────────────
   const normalized: NormalizedAd[] = adsData.map((ad) => {
     const insight = insightsMap.get(ad.id);
     const creative = ad.creative;
-
-    const thumbnailUrl =
-      creative?.thumbnail_url ?? creative?.image_url ?? null;
-
-    const creativeType: NormalizedAd['creative_type'] = creative?.video_id
-      ? 'video'
-      : creative?.image_url || creative?.thumbnail_url
-      ? 'image'
-      : 'unknown';
-
     return {
       id: ad.id,
       name: ad.name,
       status: ad.status,
-      thumbnail_url: thumbnailUrl,
-      creative_type: creativeType,
+      thumbnail_url: creative?.thumbnail_url ?? creative?.image_url ?? null,
+      creative_type: creative?.video_id ? 'video' : (creative?.image_url || creative?.thumbnail_url ? 'image' : 'unknown'),
       impressions: parseNum(insight?.impressions),
       clicks: parseNum(insight?.clicks),
       ctr: parseNum(insight?.ctr),

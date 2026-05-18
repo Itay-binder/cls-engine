@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Settings2, Link2, CreditCard, Bot,
   CheckCircle2, XCircle, ChevronRight, Eye, EyeOff,
-  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert,
+  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert, Save,
 } from 'lucide-react';
 import { useMockMode } from '@/lib/mock-mode';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,8 +16,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -388,6 +386,328 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   );
 }
 
+// ─── Real Integrations Tab ────────────────────────────────────────────────────
+
+interface IntegrationState {
+  anthropic_api_key_set: boolean;
+  anthropic_api_key_preview: string | null;
+  meta_access_token_set: boolean;
+  meta_access_token_preview: string | null;
+  meta_ad_account_id: string | null;
+  meta_page_id: string | null;
+}
+
+function RealIntegrationsTab() {
+  const [state, setState] = useState<IntegrationState | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Anthropic form
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [savingAI, setSavingAI] = useState(false);
+  const [aiSaved, setAiSaved] = useState(false);
+  const [testingAI, setTestingAI] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+
+  // Meta form
+  const [metaToken, setMetaToken] = useState('');
+  const [metaAccountId, setMetaAccountId] = useState('');
+  const [metaPageId, setMetaPageId] = useState('');
+  const [showMetaToken, setShowMetaToken] = useState(false);
+  const [savingMeta, setSavingMeta] = useState(false);
+  const [metaSaved, setMetaSaved] = useState(false);
+  const [testingMeta, setTestingMeta] = useState(false);
+  const [metaTestResult, setMetaTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch('/api/user/integrations');
+    if (res.ok) {
+      const data = await res.json() as IntegrationState;
+      setState(data);
+      setMetaAccountId(data.meta_ad_account_id ?? '');
+      setMetaPageId(data.meta_page_id ?? '');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSaveAI = async () => {
+    setSavingAI(true);
+    const res = await fetch('/api/user/integrations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anthropic_api_key: anthropicKey || null }),
+    });
+    setSavingAI(false);
+    if (res.ok) {
+      setAnthropicKey('');
+      setAiSaved(true);
+      setTimeout(() => setAiSaved(false), 2500);
+      await load();
+    }
+  };
+
+  const handleTestAI = async () => {
+    setTestingAI(true);
+    setAiTestResult('idle');
+    try {
+      // Quick test: just hit the avatars endpoint with minimal data
+      const res = await fetch('/api/ai/avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessProfile: { product_description: 'test', current_offer: null, price_range: null, market_notes: null }, count: 1 }),
+      });
+      setAiTestResult(res.ok ? 'ok' : 'fail');
+    } catch {
+      setAiTestResult('fail');
+    }
+    setTestingAI(false);
+  };
+
+  const handleSaveMeta = async () => {
+    setSavingMeta(true);
+    const res = await fetch('/api/user/integrations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meta_access_token: metaToken || null,
+        meta_ad_account_id: metaAccountId || null,
+        meta_page_id: metaPageId || null,
+      }),
+    });
+    setSavingMeta(false);
+    if (res.ok) {
+      setMetaToken('');
+      setMetaSaved(true);
+      setTimeout(() => setMetaSaved(false), 2500);
+      await load();
+    }
+  };
+
+  const handleTestMeta = async () => {
+    setTestingMeta(true);
+    setMetaTestResult('idle');
+    try {
+      const res = await fetch('/api/meta/insights');
+      setMetaTestResult(res.ok ? 'ok' : 'fail');
+    } catch {
+      setMetaTestResult('fail');
+    }
+    setTestingMeta(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4 max-w-2xl">
+        {[0,1].map((i) => <div key={i} className="shimmer h-64 rounded-xl" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5 max-w-2xl">
+      {/* ─── Anthropic / AI ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center">
+              <Bot className="w-4 h-4 text-[#8B5CF6]" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Anthropic (Claude AI)</CardTitle>
+                {state?.anthropic_api_key_set ? (
+                  <Badge variant="success" className="gap-1 text-[10px]"><CheckCircle2 className="w-2.5 h-2.5" /> Connected</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">Not configured</Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs mt-0.5">
+                Powers avatar generation, angle creation, and creative briefs.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {state?.anthropic_api_key_set && (
+            <div className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
+              Current key: <span className="font-mono text-[var(--color-text)]">{state.anthropic_api_key_preview}</span>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[var(--color-text-muted)]">
+              {state?.anthropic_api_key_set ? 'Replace API Key' : 'Add API Key'}
+            </Label>
+            <div className="relative">
+              <Input
+                type={showAnthropicKey ? 'text' : 'password'}
+                placeholder="sk-ant-api03-..."
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+                className="pr-10 font-mono text-xs"
+              />
+              <button
+                onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
+                {showAnthropicKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-muted)]">
+              Get your key at{' '}
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[var(--color-accent-light)] hover:underline">
+                console.anthropic.com
+              </a>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5 gradient-accent border-0"
+              onClick={handleSaveAI}
+              disabled={!anthropicKey || savingAI}
+            >
+              {savingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : aiSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {aiSaved ? 'Saved!' : 'Save Key'}
+            </Button>
+            {state?.anthropic_api_key_set && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleTestAI} disabled={testingAI}>
+                {testingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
+                  aiTestResult === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" /> :
+                  aiTestResult === 'fail' ? <XCircle className="w-3.5 h-3.5 text-[#EF4444]" /> :
+                  <Zap className="w-3.5 h-3.5" />}
+                {testingAI ? 'Testing...' : aiTestResult === 'ok' ? 'Working!' : aiTestResult === 'fail' ? 'Failed' : 'Test'}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Meta Ads ────────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center">
+              <MetaLogo />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Meta Ads</CardTitle>
+                {state?.meta_access_token_set ? (
+                  <Badge variant="success" className="gap-1 text-[10px]"><CheckCircle2 className="w-2.5 h-2.5" /> Connected</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">Not configured</Badge>
+                )}
+              </div>
+              <CardDescription className="text-xs mt-0.5">
+                Sync campaign data, winners, and upload creatives to Meta.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {state?.meta_access_token_set && (
+            <div className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
+              Current token: <span className="font-mono text-[var(--color-text)]">{state.meta_access_token_preview}</span>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[var(--color-text-muted)]">
+              {state?.meta_access_token_set ? 'Replace Access Token' : 'Access Token'}
+            </Label>
+            <div className="relative">
+              <Input
+                type={showMetaToken ? 'text' : 'password'}
+                placeholder="EAANx..."
+                value={metaToken}
+                onChange={(e) => setMetaToken(e.target.value)}
+                className="pr-10 font-mono text-xs"
+              />
+              <button
+                onClick={() => setShowMetaToken(!showMetaToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
+                {showMetaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-muted)]">System User token from Meta Business Manager (never expires).</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[var(--color-text-muted)]">Ad Account ID</Label>
+              <Input
+                placeholder="act_123456789"
+                value={metaAccountId}
+                onChange={(e) => setMetaAccountId(e.target.value)}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[var(--color-text-muted)]">Page ID</Label>
+              <Input
+                placeholder="10578..."
+                value={metaPageId}
+                onChange={(e) => setMetaPageId(e.target.value)}
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5 gradient-accent border-0"
+              onClick={handleSaveMeta}
+              disabled={savingMeta || (!metaToken && !metaAccountId && !metaPageId)}
+            >
+              {savingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : metaSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {metaSaved ? 'Saved!' : 'Save'}
+            </Button>
+            {state?.meta_access_token_set && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleTestMeta} disabled={testingMeta}>
+                {testingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
+                  metaTestResult === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" /> :
+                  metaTestResult === 'fail' ? <XCircle className="w-3.5 h-3.5 text-[#EF4444]" /> :
+                  <Zap className="w-3.5 h-3.5" />}
+                {testingMeta ? 'Testing...' : metaTestResult === 'ok' ? 'Connected!' : metaTestResult === 'fail' ? 'Failed' : 'Test'}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Coming Soon ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { name: 'Google Ads', logo: <GoogleLogo />, desc: 'Cross-channel attribution and spend analysis.' },
+          { name: 'TikTok Ads', logo: <TikTokLogo />, desc: 'Sync TikTok campaigns and creative metrics.' },
+          { name: 'Stripe Billing', logo: <StripeLogo />, desc: 'Pull real LTV and revenue data from Stripe.' },
+          { name: 'Make.com', logo: <MakeLogo />, desc: 'Connect automation workflows and webhooks.' },
+        ].map((item) => (
+          <Card key={item.name} className="opacity-60">
+            <CardContent className="p-4 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+                {item.logo}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-semibold text-[var(--color-text)]">{item.name}</p>
+                  <Badge variant="outline" className="text-[10px]">Coming Soon</Badge>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.desc}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('LiftyGo');
@@ -407,21 +727,9 @@ export default function SettingsPage() {
     });
   }, []);
 
-  const [aiProvider, setAiProvider] = useState('claude');
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [model, setModel] = useState('claude-sonnet-4-6');
-  const [temperature, setTemperature] = useState(0.7);
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
-
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  };
-
-  const handleTest = () => {
-    setTestStatus('testing');
-    setTimeout(() => setTestStatus(apiKey.length > 10 ? 'ok' : 'fail'), 1800);
   };
 
   return (
@@ -445,10 +753,6 @@ export default function SettingsPage() {
           <TabsTrigger value="billing" className="gap-1.5">
             <CreditCard className="w-3.5 h-3.5" />
             Billing
-          </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-1.5">
-            <Bot className="w-3.5 h-3.5" />
-            AI Config
           </TabsTrigger>
         </TabsList>
 
@@ -531,15 +835,7 @@ export default function SettingsPage() {
 
         {/* Integrations Tab */}
         <TabsContent value="integrations">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {INTEGRATIONS.map((integration) =>
-              integration.id === 'meta' ? (
-                <MetaIntegrationCard key={integration.id} integration={integration} />
-              ) : (
-                <IntegrationCard key={integration.id} integration={integration} />
-              )
-            )}
-          </div>
+          <RealIntegrationsTab />
         </TabsContent>
 
         {/* Billing Tab */}
@@ -611,138 +907,6 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
-        {/* AI Config Tab */}
-        <TabsContent value="ai">
-          <Card className="max-w-xl">
-            <CardHeader>
-              <CardTitle>AI Configuration</CardTitle>
-              <CardDescription>Configure the AI provider powering your engine</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {/* Provider */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[var(--color-text-muted)]">AI Provider</Label>
-                <Select value={aiProvider} onValueChange={setAiProvider}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="claude">Claude (Anthropic)</SelectItem>
-                    <SelectItem value="openai">OpenAI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* API Key */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[var(--color-text-muted)]">API Key</Label>
-                <div className="relative">
-                  <Input
-                    type={showKey ? 'text' : 'password'}
-                    placeholder={aiProvider === 'claude' ? 'sk-ant-...' : 'sk-proj-...'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                  >
-                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-[var(--color-text-muted)]">Stored encrypted. Never sent to third parties.</p>
-              </div>
-
-              {/* Model */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[var(--color-text-muted)]">Model</Label>
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aiProvider === 'claude' ? (
-                      <>
-                        <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</SelectItem>
-                        <SelectItem value="claude-opus-4-5">Claude Opus 4.5</SelectItem>
-                        <SelectItem value="claude-haiku-3-5">Claude Haiku 3.5 (Fast)</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value="gpt-4o">GPT-4o (Recommended)</SelectItem>
-                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
-                        <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Temperature */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-[var(--color-text-muted)]">
-                    Temperature
-                    <span className="ml-1 text-[10px] text-[var(--color-text-muted)] normal-case font-normal">
-                      (creativity level)
-                    </span>
-                  </Label>
-                  <span className="text-xs font-medium text-[var(--color-text)]">{temperature.toFixed(1)}</span>
-                </div>
-                <Slider
-                  value={temperature * 100}
-                  onChange={(v) => setTemperature(parseFloat((v / 100).toFixed(2)))}
-                  min={0}
-                  max={100}
-                  step={5}
-                />
-                <div className="flex justify-between text-[10px] text-[var(--color-text-muted)]">
-                  <span>Precise (0.0)</span>
-                  <span>Creative (1.0)</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={handleTest}
-                  disabled={testStatus === 'testing'}
-                >
-                  {testStatus === 'testing' ? (
-                    <>
-                      <span className="w-3.5 h-3.5 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" />
-                      Testing...
-                    </>
-                  ) : testStatus === 'ok' ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
-                      Connection OK
-                    </>
-                  ) : testStatus === 'fail' ? (
-                    <>
-                      <AlertCircle className="w-3.5 h-3.5 text-[#EF4444]" />
-                      Failed — check key
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-3.5 h-3.5" />
-                      Test Connection
-                    </>
-                  )}
-                </Button>
-                <Button className="flex-1 gap-2" onClick={handleSave}>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Save Config
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

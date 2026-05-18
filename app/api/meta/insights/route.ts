@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getUserIntegrations } from '@/lib/user-integrations';
 
 const BASE_URL = 'https://graph.facebook.com/v21.0';
 
@@ -21,11 +22,7 @@ interface MetaInsightsRow {
 
 interface MetaInsightsResponse {
   data?: MetaInsightsRow[];
-  error?: {
-    message: string;
-    type: string;
-    code: number;
-  };
+  error?: { message: string; type: string; code: number };
 }
 
 export interface InsightsSummary {
@@ -42,13 +39,14 @@ export interface InsightsSummary {
 }
 
 export async function GET() {
-  const token = process.env.META_ACCESS_TOKEN;
-  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const userResult = await getUserIntegrations();
+  if (!userResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { meta_access_token: token, meta_ad_account_id: adAccountId } = userResult.integrations;
   if (!token || !adAccountId) {
     return NextResponse.json(
-      { error: 'META_ACCESS_TOKEN or META_AD_ACCOUNT_ID not configured' },
-      { status: 500 }
+      { error: 'Meta credentials not configured. Add them in Settings → Integrations.' },
+      { status: 503 }
     );
   }
 
@@ -60,25 +58,17 @@ export async function GET() {
     const json = (await res.json()) as MetaInsightsResponse;
 
     if (json.error) {
-      return NextResponse.json(
-        { error: json.error.message, code: json.error.code },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: json.error.message, code: json.error.code }, { status: 502 });
     }
 
     const row = json.data?.[0];
-    if (!row) {
-      return NextResponse.json({ error: 'No insights data returned' }, { status: 502 });
-    }
+    if (!row) return NextResponse.json({ error: 'No insights data returned' }, { status: 502 });
 
-    const purchases =
-      row.actions?.find((a) => a.action_type === 'purchase')?.value ?? '0';
-    const leads =
-      row.actions?.find((a) => a.action_type === 'lead')?.value ?? '0';
+    const purchases = row.actions?.find((a) => a.action_type === 'purchase')?.value ?? '0';
+    const leads = row.actions?.find((a) => a.action_type === 'lead')?.value ?? '0';
     const roasVal =
       row.purchase_roas?.find((r) => r.action_type === 'omni_purchase')?.value ??
-      row.purchase_roas?.[0]?.value ??
-      '0';
+      row.purchase_roas?.[0]?.value ?? '0';
 
     const summary: InsightsSummary = {
       impressions: parseInt(row.impressions ?? '0', 10),
