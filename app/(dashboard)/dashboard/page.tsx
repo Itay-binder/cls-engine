@@ -1,12 +1,7 @@
-'use client';
+// Mission Control — Server Component
+// Fetches real Supabase data server-side. Falls back to zero state for new users.
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { createClient } from '@/lib/supabase/server';
 import {
   Lightbulb,
   ImageIcon,
@@ -32,140 +27,50 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { StatusDonut } from '@/components/dashboard/StatusDonut';
+import Link from 'next/link';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type StatusType = 'Testing' | 'Winner' | 'Failed' | 'Pending';
+type HypothesisStatus = 'pending' | 'testing' | 'winner' | 'failed';
 type ScaleStatus = 'Not Ready' | 'Needs Testing' | 'Winner Detected' | 'Ready to Scale';
 
-interface Experiment {
+interface HypothesisRow {
   id: string;
-  hypothesis: string;
-  angle: string;
-  status: StatusType;
-  hookScore: number;
-  created: string;
+  hook: string;
+  angle: string | null;
+  hypothesis_status: HypothesisStatus;
+  created_at: string;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+interface DashboardData {
+  hypothesisCount: number;
+  assetCount: number;
+  winnerCount: number;
+  scaleScore: number | null;
+  latestHypotheses: HypothesisRow[];
+  statusDistribution: { pending: number; testing: number; winner: number; failed: number };
+}
 
-const HYPOTHESIS_DISTRIBUTION = [
-  { name: 'Testing', value: 5, color: '#38BDF8' },
-  { name: 'Winner', value: 3, color: '#22C55E' },
-  { name: 'Failed', value: 4, color: '#EF4444' },
-  { name: 'Pending', value: 6, color: '#64748B' },
-];
+// ─── Scale Status helpers ─────────────────────────────────────────────────────
 
-const EXPERIMENTS: Experiment[] = [
-  {
-    id: '1',
-    hypothesis: 'Pain-led hook outperforms aspiration in cold audiences',
-    angle: 'Problem Awareness',
-    status: 'Winner',
-    hookScore: 9.2,
-    created: 'May 14, 2026',
-  },
-  {
-    id: '2',
-    hypothesis: 'Social proof from niche peers converts better than general testimonials',
-    angle: 'Trust / Authority',
-    status: 'Testing',
-    hookScore: 7.8,
-    created: 'May 16, 2026',
-  },
-  {
-    id: '3',
-    hypothesis: 'Price anchoring to daily cost reduces checkout friction',
-    angle: 'Objection Handling',
-    status: 'Testing',
-    hookScore: 6.5,
-    created: 'May 17, 2026',
-  },
-  {
-    id: '4',
-    hypothesis: 'Video > static for cold traffic on Meta at $497+ price point',
-    angle: 'Format Test',
-    status: 'Failed',
-    hookScore: 3.1,
-    created: 'May 10, 2026',
-  },
-  {
-    id: '5',
-    hypothesis: 'Urgency deadline in VSL increases same-session conversions',
-    angle: 'Scarcity / CTA',
-    status: 'Pending',
-    hookScore: 0,
-    created: 'May 18, 2026',
-  },
-];
-
-const SCALE_STATUS: ScaleStatus = 'Winner Detected';
-
-const LTV_DATA = {
-  estimatedLTV: 2840,
-  cac: 420,
-  gap: 2420,
-  ltvCacRatio: 6.8,
-};
-
-const STATS = [
-  {
-    label: 'Hypotheses Generated',
-    value: 18,
-    icon: Lightbulb,
-    trend: '+4 this week',
-    trendUp: true as boolean | null,
-    color: 'text-[#8B5CF6]',
-    bg: 'bg-[#7c3aed20]',
-  },
-  {
-    label: 'Creatives Ready',
-    value: 12,
-    icon: ImageIcon,
-    trend: '3 in review',
-    trendUp: null as boolean | null,
-    color: 'text-[#38BDF8]',
-    bg: 'bg-[#38bdf820]',
-  },
-  {
-    label: 'Experiments Running',
-    value: 5,
-    icon: FlaskConical,
-    trend: 'Live now',
-    trendUp: null as boolean | null,
-    color: 'text-[#F59E0B]',
-    bg: 'bg-[#f59e0b20]',
-  },
-  {
-    label: 'Winners Detected',
-    value: 3,
-    icon: Trophy,
-    trend: '+1 since Monday',
-    trendUp: true as boolean | null,
-    color: 'text-[#22C55E]',
-    bg: 'bg-[#22c55e20]',
-  },
-];
-
-// ─── Scale Status Config ──────────────────────────────────────────────────────
+function resolveScaleStatus(score: number | null): ScaleStatus {
+  if (score === null) return 'Not Ready';
+  if (score >= 80) return 'Ready to Scale';
+  if (score >= 60) return 'Winner Detected';
+  if (score >= 30) return 'Needs Testing';
+  return 'Not Ready';
+}
 
 const SCALE_CONFIG: Record<
   ScaleStatus,
-  {
-    color: string;
-    bg: string;
-    border: string;
-    barColor: string;
-    score: number;
-    Icon: React.ElementType;
-  }
+  { color: string; bg: string; border: string; barColor: string; Icon: React.ElementType }
 > = {
   'Not Ready': {
     color: 'text-[#EF4444]',
     bg: 'bg-[#ef444420]',
     border: 'border-[#EF4444]/20',
     barColor: '#EF4444',
-    score: 18,
     Icon: TrendingDown,
   },
   'Needs Testing': {
@@ -173,7 +78,6 @@ const SCALE_CONFIG: Record<
     bg: 'bg-[#f59e0b20]',
     border: 'border-[#F59E0B]/20',
     barColor: '#F59E0B',
-    score: 42,
     Icon: Minus,
   },
   'Winner Detected': {
@@ -181,7 +85,6 @@ const SCALE_CONFIG: Record<
     bg: 'bg-[#38bdf820]',
     border: 'border-[#38BDF8]/20',
     barColor: '#38BDF8',
-    score: 71,
     Icon: Sparkles,
   },
   'Ready to Scale': {
@@ -189,19 +92,24 @@ const SCALE_CONFIG: Record<
     bg: 'bg-[#22c55e20]',
     border: 'border-[#22C55E]/20',
     barColor: '#22C55E',
-    score: 94,
     Icon: TrendingUp,
   },
 };
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: StatusType }) {
-  const styles: Record<StatusType, string> = {
-    Winner: 'bg-[#22c55e20] text-[#22C55E] border border-[#22C55E]/20',
-    Testing: 'bg-[#38bdf820] text-[#38BDF8] border border-[#38BDF8]/20',
-    Failed: 'bg-[#ef444420] text-[#EF4444] border border-[#EF4444]/20',
-    Pending: 'bg-[#1e2d45] text-[#64748B] border border-[#1e2d45]',
+function StatusBadge({ status }: { status: HypothesisStatus }) {
+  const styles: Record<HypothesisStatus, string> = {
+    winner: 'bg-[#22c55e20] text-[#22C55E] border border-[#22C55E]/20',
+    testing: 'bg-[#38bdf820] text-[#38BDF8] border border-[#38BDF8]/20',
+    failed: 'bg-[#ef444420] text-[#EF4444] border border-[#EF4444]/20',
+    pending: 'bg-[#1e2d45] text-[#64748B] border border-[#1e2d45]',
+  };
+  const labels: Record<HypothesisStatus, string> = {
+    winner: 'Winner',
+    testing: 'Testing',
+    failed: 'Failed',
+    pending: 'Pending',
   };
 
   return (
@@ -211,30 +119,8 @@ function StatusBadge({ status }: { status: StatusType }) {
         styles[status]
       )}
     >
-      {status}
+      {labels[status]}
     </span>
-  );
-}
-
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
-
-function CustomTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; payload: { color: string } }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const item = payload[0];
-  return (
-    <div className="glass rounded-xl border border-[#1e2d45] px-3 py-2 shadow-xl">
-      <div className="flex items-center gap-2">
-        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.payload.color }} />
-        <span className="text-sm font-medium text-[#F8FAFC]">{item.name}</span>
-        <span className="text-sm text-[#64748B]">{item.value}</span>
-      </div>
-    </div>
   );
 }
 
@@ -244,18 +130,16 @@ function StatCard({
   label,
   value,
   icon: Icon,
-  trend,
-  trendUp,
   color,
   bg,
+  subtitle,
 }: {
   label: string;
   value: number;
   icon: React.ElementType;
-  trend: string;
-  trendUp: boolean | null;
   color: string;
   bg: string;
+  subtitle: string;
 }) {
   return (
     <Card>
@@ -269,31 +153,83 @@ function StatCard({
             <Icon className={cn('h-4 w-4', color)} />
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-1.5">
-          {trendUp === true && <TrendingUp className="h-3 w-3 text-[#22C55E]" />}
-          {trendUp === false && <TrendingDown className="h-3 w-3 text-[#EF4444]" />}
-          <span
-            className={cn(
-              'text-xs',
-              trendUp === true
-                ? 'text-[#22C55E]'
-                : trendUp === false
-                  ? 'text-[#EF4444]'
-                  : 'text-[#64748B]'
-            )}
-          >
-            {trend}
-          </span>
+        <div className="mt-3">
+          <span className="text-xs text-[#64748B]">{subtitle}</span>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// ─── Market Discovery Chart ───────────────────────────────────────────────────
+// ─── Scale Readiness Card ─────────────────────────────────────────────────────
 
-function MarketDiscoveryCard() {
-  const total = HYPOTHESIS_DISTRIBUTION.reduce((s, d) => s + d.value, 0);
+function ScaleReadinessCard({
+  scaleStatus,
+  score,
+}: {
+  scaleStatus: ScaleStatus;
+  score: number;
+}) {
+  const cfg = SCALE_CONFIG[scaleStatus];
+  const StatusIcon = cfg.Icon;
+
+  return (
+    <Card className={cn('border', cfg.border)}>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', cfg.bg)}>
+            <BarChart3 className={cn('h-4 w-4', cfg.color)} />
+          </div>
+          <CardTitle>Scale Readiness</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <div
+          className={cn(
+            'flex items-center justify-between rounded-xl px-4 py-3 border',
+            cfg.bg,
+            cfg.border
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <StatusIcon className={cn('h-5 w-5', cfg.color)} />
+            <span className={cn('text-base font-bold', cfg.color)}>{scaleStatus}</span>
+          </div>
+          <span className={cn('text-2xl font-bold tabular-nums', cfg.color)}>{score}</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#64748B]">Readiness Score</span>
+            <span className="text-xs font-medium text-[#F8FAFC]">{score} / 100</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[#1e2d45]">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${score}%`, backgroundColor: cfg.barColor }}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Market Discovery Card ────────────────────────────────────────────────────
+
+function MarketDiscoveryCard({
+  distribution,
+  total,
+}: {
+  distribution: { pending: number; testing: number; winner: number; failed: number };
+  total: number;
+}) {
+  const donutData = [
+    { name: 'Testing', value: distribution.testing, color: '#38BDF8' },
+    { name: 'Winner', value: distribution.winner, color: '#22C55E' },
+    { name: 'Failed', value: distribution.failed, color: '#EF4444' },
+    { name: 'Pending', value: distribution.pending, color: '#64748B' },
+  ];
 
   return (
     <Card>
@@ -309,62 +245,7 @@ function MarketDiscoveryCard() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-6">
-          {/* Donut */}
-          <div className="h-48 w-48 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={HYPOTHESIS_DISTRIBUTION}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {HYPOTHESIS_DISTRIBUTION.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legend with mini bars */}
-          <div className="flex flex-col gap-3 flex-1">
-            {HYPOTHESIS_DISTRIBUTION.map((item) => {
-              const pct = Math.round((item.value / total) * 100);
-              return (
-                <div key={item.name} className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-sm text-[#94A3B8]">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold tabular-nums text-[#F8FAFC]">
-                        {item.value}
-                      </span>
-                      <span className="text-xs text-[#64748B]">{pct}%</span>
-                    </div>
-                  </div>
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-[#1e2d45]">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${pct}%`, backgroundColor: item.color }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <StatusDonut data={donutData} />
       </CardContent>
     </Card>
   );
@@ -372,7 +253,7 @@ function MarketDiscoveryCard() {
 
 // ─── Recent Experiments Table ─────────────────────────────────────────────────
 
-function RecentExperimentsCard() {
+function RecentExperimentsCard({ hypotheses }: { hypotheses: HypothesisRow[] }) {
   return (
     <Card>
       <CardHeader>
@@ -383,213 +264,75 @@ function RecentExperimentsCard() {
             </div>
             <div>
               <CardTitle>Recent Experiments</CardTitle>
-              <CardDescription className="mt-0.5">Last 5 hypotheses tested</CardDescription>
+              <CardDescription className="mt-0.5">Latest 5 hypotheses</CardDescription>
             </div>
           </div>
-          <button className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-[#64748B] transition-colors hover:bg-[#101624] hover:text-[#F8FAFC]">
+          <Link
+            href="/discovery"
+            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-[#64748B] transition-colors hover:bg-[#101624] hover:text-[#F8FAFC]"
+          >
             View all <ArrowRight className="h-3 w-3" />
-          </button>
+          </Link>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[#162034]">
-                {['Hypothesis', 'Angle', 'Status', 'Hook Score', 'Created'].map((col) => (
-                  <th
-                    key={col}
-                    className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-widest text-[#64748B] last:pr-0"
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#162034]">
-              {EXPERIMENTS.map((exp) => (
-                <tr key={exp.id} className="group transition-colors duration-150 hover:bg-[#141d2e]">
-                  <td className="py-3 pr-4">
-                    <span className="line-clamp-2 text-sm text-[#F8FAFC] max-w-[260px] block">
-                      {exp.hypothesis}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="text-sm text-[#94A3B8] whitespace-nowrap">{exp.angle}</span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <StatusBadge status={exp.status} />
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className={cn(
-                        'text-sm font-semibold tabular-nums',
-                        exp.hookScore >= 8
-                          ? 'text-[#22C55E]'
-                          : exp.hookScore >= 5
-                            ? 'text-[#F59E0B]'
-                            : exp.hookScore === 0
-                              ? 'text-[#64748B]'
-                              : 'text-[#EF4444]'
-                      )}
+        {hypotheses.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-[#64748B]">No experiments yet.</p>
+            <Link
+              href="/discovery"
+              className="mt-2 inline-flex items-center gap-1 text-xs text-[#8B5CF6] hover:underline"
+            >
+              Generate your first hypotheses <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-[#162034]">
+                  {['Hypothesis', 'Angle', 'Status', 'Created'].map((col) => (
+                    <th
+                      key={col}
+                      className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-widest text-[#64748B] last:pr-0"
                     >
-                      {exp.hookScore === 0 ? '—' : exp.hookScore.toFixed(1)}
-                    </span>
-                  </td>
-                  <td className="py-3 text-sm text-[#64748B] whitespace-nowrap">{exp.created}</td>
+                      {col}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Scale Readiness Card ─────────────────────────────────────────────────────
-
-function ScaleReadinessCard() {
-  const cfg = SCALE_CONFIG[SCALE_STATUS];
-  const StatusIcon = cfg.Icon;
-
-  const metrics = [
-    { label: 'Hook Score Avg', value: '7.4 / 10', good: true },
-    { label: 'Winners Found', value: '3', good: true },
-    { label: 'CAC Validated', value: 'Partial', good: false },
-    { label: 'Scaling Risk', value: 'Medium', good: false },
-  ];
-
-  return (
-    <Card className={cn('border', cfg.border)}>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', cfg.bg)}>
-            <BarChart3 className={cn('h-4 w-4', cfg.color)} />
+              </thead>
+              <tbody className="divide-y divide-[#162034]">
+                {hypotheses.map((exp) => (
+                  <tr
+                    key={exp.id}
+                    className="group transition-colors duration-150 hover:bg-[#141d2e]"
+                  >
+                    <td className="py-3 pr-4">
+                      <span className="line-clamp-2 text-sm text-[#F8FAFC] max-w-[260px] block">
+                        {exp.hook}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="text-sm text-[#94A3B8] whitespace-nowrap">
+                        {exp.angle ?? '—'}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <StatusBadge status={exp.hypothesis_status} />
+                    </td>
+                    <td className="py-3 text-sm text-[#64748B] whitespace-nowrap">
+                      {new Date(exp.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <CardTitle>Scale Readiness</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        {/* Status pill */}
-        <div className={cn('flex items-center justify-between rounded-xl px-4 py-3 border', cfg.bg, cfg.border)}>
-          <div className="flex items-center gap-2">
-            <StatusIcon className={cn('h-5 w-5', cfg.color)} />
-            <span className={cn('text-base font-bold', cfg.color)}>{SCALE_STATUS}</span>
-          </div>
-          <span className={cn('text-2xl font-bold tabular-nums', cfg.color)}>{cfg.score}</span>
-        </div>
-
-        {/* Score bar */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[#64748B]">Readiness Score</span>
-            <span className="text-xs font-medium text-[#F8FAFC]">{cfg.score} / 100</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[#1e2d45]">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${cfg.score}%`, backgroundColor: cfg.barColor }}
-            />
-          </div>
-        </div>
-
-        {/* Key metrics grid */}
-        <div className="grid grid-cols-2 gap-2">
-          {metrics.map((m) => (
-            <div
-              key={m.label}
-              className="flex flex-col gap-0.5 rounded-lg bg-[#141d2e] px-3 py-2"
-            >
-              <span className="text-xs text-[#64748B]">{m.label}</span>
-              <span
-                className={cn(
-                  'text-sm font-semibold',
-                  m.good ? 'text-[#22C55E]' : 'text-[#F59E0B]'
-                )}
-              >
-                {m.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── LTV Gap Card ─────────────────────────────────────────────────────────────
-
-function LtvGapCard() {
-  const { estimatedLTV, cac, gap, ltvCacRatio } = LTV_DATA;
-  const cacPct = Math.round((cac / estimatedLTV) * 100);
-  const gapPct = Math.round((gap / estimatedLTV) * 100);
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22c55e20]">
-            <DollarSign className="h-4 w-4 text-[#22C55E]" />
-          </div>
-          <div>
-            <CardTitle>LTV Gap</CardTitle>
-            <CardDescription className="mt-0.5">Unit economics snapshot</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {/* LTV vs CAC */}
-        <div className="flex items-end justify-between rounded-xl bg-[#141d2e] px-4 py-3 border border-[#162034]">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-[#64748B]">Estimated LTV</span>
-            <span className="text-2xl font-bold tabular-nums text-[#F8FAFC]">
-              ${estimatedLTV.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-[#64748B]">CAC</span>
-            <span className="text-2xl font-bold tabular-nums text-[#EF4444]">
-              ${cac.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Gap row */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-[#64748B]">Profit per customer</span>
-            <span className="text-xl font-bold tabular-nums text-[#22C55E]">
-              +${gap.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-[#64748B]">LTV:CAC ratio</span>
-            <span
-              className={cn(
-                'text-xl font-bold tabular-nums',
-                ltvCacRatio >= 3 ? 'text-[#22C55E]' : 'text-[#F59E0B]'
-              )}
-            >
-              {ltvCacRatio.toFixed(1)}x
-            </span>
-          </div>
-        </div>
-
-        {/* Visual bar */}
-        <div className="flex flex-col gap-1">
-          <div className="flex h-3 w-full overflow-hidden rounded-full bg-[#1e2d45]">
-            <div
-              className="h-full bg-[#EF4444] transition-all duration-700"
-              style={{ width: `${cacPct}%` }}
-            />
-            <div className="h-full flex-1 bg-gradient-to-r from-[#22C55E]/60 to-[#22C55E]" />
-          </div>
-          <div className="flex justify-between text-xs text-[#64748B]">
-            <span>CAC ({cacPct}%)</span>
-            <span>Profit ({gapPct}%)</span>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -597,25 +340,28 @@ function LtvGapCard() {
 
 // ─── Quick Actions Card ───────────────────────────────────────────────────────
 
-function QuickActionsCard() {
+function QuickActionsCard({ winnerCount }: { winnerCount: number }) {
   const actions = [
     {
       label: 'Generate Hypotheses',
       icon: Lightbulb,
       primary: true,
       desc: 'Let AI find your next angle',
+      href: '/discovery',
     },
     {
       label: 'Create Content',
       icon: ImageIcon,
       primary: false,
       desc: 'From winning hooks to creatives',
+      href: '/creative',
     },
     {
       label: 'View Winners',
       icon: Trophy,
       primary: false,
-      desc: '3 confirmed winners ready',
+      desc: winnerCount > 0 ? `${winnerCount} confirmed winner${winnerCount !== 1 ? 's' : ''} ready` : 'No winners yet — keep testing',
+      href: '/winners',
     },
   ];
 
@@ -633,8 +379,9 @@ function QuickActionsCard() {
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <button
+            <Link
               key={action.label}
+              href={action.href}
               className={cn(
                 'group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200',
                 action.primary
@@ -664,7 +411,7 @@ function QuickActionsCard() {
                 <span className="text-xs text-[#64748B]">{action.desc}</span>
               </div>
               <ArrowRight className="ml-auto h-4 w-4 text-[#64748B] transition-transform group-hover:translate-x-0.5 group-hover:text-[#8B5CF6]" />
-            </button>
+            </Link>
           );
         })}
       </CardContent>
@@ -672,9 +419,112 @@ function QuickActionsCard() {
   );
 }
 
+// ─── Data Fetching ────────────────────────────────────────────────────────────
+
+async function fetchDashboardData(): Promise<DashboardData> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      hypothesisCount: 0,
+      assetCount: 0,
+      winnerCount: 0,
+      scaleScore: null,
+      latestHypotheses: [],
+      statusDistribution: { pending: 0, testing: 0, winner: 0, failed: 0 },
+    };
+  }
+
+  // Get user's workspace
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const workspaceId = workspace?.id ?? null;
+
+  if (!workspaceId) {
+    return {
+      hypothesisCount: 0,
+      assetCount: 0,
+      winnerCount: 0,
+      scaleScore: null,
+      latestHypotheses: [],
+      statusDistribution: { pending: 0, testing: 0, winner: 0, failed: 0 },
+    };
+  }
+
+  // Run all queries in parallel
+  const [
+    hypothesesCountResult,
+    assetsCountResult,
+    winnersCountResult,
+    scaleScoreResult,
+    latestHypothesesResult,
+    statusDistResult,
+  ] = await Promise.all([
+    supabase
+      .from('hypotheses')
+      .select('*', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId),
+    supabase
+      .from('creative_assets')
+      .select('*', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId),
+    supabase
+      .from('winners')
+      .select('*', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('detection_status', 'winner'),
+    supabase
+      .from('scale_scores')
+      .select('score')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('hypotheses')
+      .select('id, hook, angle, hypothesis_status, created_at')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase
+      .from('hypotheses')
+      .select('hypothesis_status')
+      .eq('workspace_id', workspaceId),
+  ]);
+
+  // Build status distribution
+  const distribution = { pending: 0, testing: 0, winner: 0, failed: 0 };
+  for (const row of statusDistResult.data ?? []) {
+    const s = row.hypothesis_status as HypothesisStatus;
+    if (s in distribution) distribution[s]++;
+  }
+
+  return {
+    hypothesisCount: hypothesesCountResult.count ?? 0,
+    assetCount: assetsCountResult.count ?? 0,
+    winnerCount: winnersCountResult.count ?? 0,
+    scaleScore: scaleScoreResult.data?.score ?? null,
+    latestHypotheses: (latestHypothesesResult.data ?? []) as HypothesisRow[],
+    statusDistribution: distribution,
+  };
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const data = await fetchDashboardData();
+  const scaleStatus = resolveScaleStatus(data.scaleScore);
+  const scaleScore = data.scaleScore ?? 0;
+  const total = data.hypothesisCount;
+
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -682,10 +532,45 @@ export default function DashboardPage() {
     year: 'numeric',
   });
 
+  const stats = [
+    {
+      label: 'Hypotheses Generated',
+      value: data.hypothesisCount,
+      icon: Lightbulb,
+      color: 'text-[#8B5CF6]',
+      bg: 'bg-[#7c3aed20]',
+      subtitle: data.hypothesisCount === 0 ? 'None yet — start in Discovery' : `${data.statusDistribution.testing} in testing`,
+    },
+    {
+      label: 'Creatives Ready',
+      value: data.assetCount,
+      icon: ImageIcon,
+      color: 'text-[#38BDF8]',
+      bg: 'bg-[#38bdf820]',
+      subtitle: data.assetCount === 0 ? 'Generate from a hypothesis' : 'Saved to library',
+    },
+    {
+      label: 'Experiments Running',
+      value: data.statusDistribution.testing,
+      icon: FlaskConical,
+      color: 'text-[#F59E0B]',
+      bg: 'bg-[#f59e0b20]',
+      subtitle: data.statusDistribution.testing === 0 ? 'No active tests yet' : 'Live now',
+    },
+    {
+      label: 'Winners Detected',
+      value: data.winnerCount,
+      icon: Trophy,
+      color: 'text-[#22C55E]',
+      bg: 'bg-[#22c55e20]',
+      subtitle: data.winnerCount === 0 ? 'Keep testing to find winners' : 'Ready to scale',
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#070A12]">
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#38BDF8] shadow-lg shadow-[#7C3AED]/30">
@@ -703,33 +588,35 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Top stat cards ── */}
+        {/* Stat cards */}
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {STATS.map((stat) => (
+          {stats.map((stat) => (
             <StatCard key={stat.label} {...stat} />
           ))}
         </div>
 
-        {/* ── Main content grid ── */}
+        {/* Main content grid */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
           {/* Left column */}
           <div className="flex flex-col gap-6">
-            <MarketDiscoveryCard />
-            <RecentExperimentsCard />
+            <MarketDiscoveryCard
+              distribution={data.statusDistribution}
+              total={total}
+            />
+            <RecentExperimentsCard hypotheses={data.latestHypotheses} />
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-6">
-            <ScaleReadinessCard />
-            <LtvGapCard />
-            <QuickActionsCard />
+            <ScaleReadinessCard scaleStatus={scaleStatus} score={scaleScore} />
+            <QuickActionsCard winnerCount={data.winnerCount} />
           </div>
         </div>
 
-        {/* ── Footer quote ── */}
+        {/* Footer */}
         <div className="mt-10 text-center">
           <p className="text-sm italic text-[#64748B]">
-            "A failed experiment is still market intelligence."
+            &ldquo;A failed experiment is still market intelligence.&rdquo;
           </p>
         </div>
       </div>

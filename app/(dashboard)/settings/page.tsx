@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings2, Link2, CreditCard, Bot,
   CheckCircle2, XCircle, ChevronRight, Eye, EyeOff,
-  Zap, RefreshCw, AlertCircle,
+  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert,
 } from 'lucide-react';
+import { useMockMode } from '@/lib/mock-mode';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,15 +90,151 @@ function MakeLogo() {
   );
 }
 
-// ─── Mock Integrations Data ───────────────────────────────────────────────────
+// ─── Meta Status Types ─────────────────────────────────────────────────────────
+type MetaCheckState = 'loading' | 'connected' | 'error';
+
+interface MetaStatus {
+  state: MetaCheckState;
+  accountName?: string;
+  spend?: number;
+  errorMsg?: string;
+}
+
+// ─── Meta Integration Card (live check) ───────────────────────────────────────
+function MetaIntegrationCard({ integration }: { integration: Integration }) {
+  const [meta, setMeta] = useState<MetaStatus>({ state: 'loading' });
+  const [syncing, setSyncing] = useState(false);
+
+  const checkConnection = async () => {
+    setMeta({ state: 'loading' });
+    try {
+      const res = await fetch('/api/meta/insights');
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: string };
+        setMeta({ state: 'error', errorMsg: body.error ?? `HTTP ${res.status}` });
+        return;
+      }
+      const data = (await res.json()) as {
+        account_name?: string;
+        spend?: number;
+        error?: string;
+      };
+      if (data.error) {
+        setMeta({ state: 'error', errorMsg: data.error });
+        return;
+      }
+      setMeta({
+        state: 'connected',
+        accountName: data.account_name || 'LiftyGo',
+        spend: data.spend,
+      });
+    } catch {
+      setMeta({ state: 'error', errorMsg: 'Network error — could not reach Meta API' });
+    }
+  };
+
+  useEffect(() => {
+    checkConnection();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    await checkConnection();
+    setSyncing(false);
+  };
+
+  return (
+    <Card className="hover:border-[var(--color-accent)]/30 transition-colors">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+            {integration.logo}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <p className="font-semibold text-sm text-[var(--color-text)]">{integration.name}</p>
+
+              {meta.state === 'loading' && (
+                <Badge variant="outline" className="gap-1">
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  Checking...
+                </Badge>
+              )}
+              {meta.state === 'connected' && (
+                <Badge variant="success" className="gap-1">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  Connected
+                </Badge>
+              )}
+              {meta.state === 'error' && (
+                <Badge variant="danger" className="gap-1">
+                  <XCircle className="w-2.5 h-2.5" />
+                  Token expired
+                </Badge>
+              )}
+            </div>
+
+            <p className="text-xs text-[var(--color-text-muted)] mb-3">{integration.description}</p>
+
+            {/* Connected details */}
+            {meta.state === 'connected' && (
+              <div className="mb-3 p-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  <span className="text-[var(--color-text-muted)]">Account: </span>
+                  {meta.accountName}
+                </p>
+                {meta.spend !== undefined && (
+                  <p className="text-xs text-[var(--color-text-secondary)]">
+                    <span className="text-[var(--color-text-muted)]">Last 30d spend: </span>
+                    ${meta.spend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Error details */}
+            {meta.state === 'error' && (
+              <div className="mb-3 p-3 rounded-lg bg-[var(--color-danger-dim)]/20 border border-[var(--color-danger)]/20 space-y-1">
+                <p className="text-xs text-[var(--color-danger)]">{meta.errorMsg}</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              {meta.state === 'connected' && (
+                <>
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSync} disabled={syncing}>
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-[var(--color-danger)] hover:text-[var(--color-danger)]">
+                    Disconnect
+                  </Button>
+                </>
+              )}
+              {meta.state === 'error' && (
+                <Button size="sm" onClick={handleSync} disabled={syncing} className="gap-1.5">
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Reconnecting...' : 'Reconnect'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Static Integrations Data ─────────────────────────────────────────────────
 const INTEGRATIONS: Integration[] = [
   {
     id: 'meta',
     name: 'Meta Ads',
     description: 'Connect your Meta Ads account to sync campaign data and automate creative experiments.',
     status: 'connected',
-    accountName: 'LiftyGo — act_1609693939594710',
-    lastSync: '2 minutes ago',
     logo: <MetaLogo />,
   },
   {
@@ -179,15 +316,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
             <p className="text-xs text-[var(--color-text-muted)] mb-3">{integration.description}</p>
 
-            {/* Connected details */}
-            {integration.status === 'connected' && integration.id === 'meta' && (
+            {/* Connected details (non-meta integrations) */}
+            {integration.status === 'connected' && integration.accountName && (
               <div className="mb-3 p-3 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] space-y-1">
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   <span className="text-[var(--color-text-muted)]">Account: </span>{integration.accountName}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  <span className="text-[var(--color-text-muted)]">Last sync: </span>{integration.lastSync}
-                </p>
+                {integration.lastSync && (
+                  <p className="text-xs text-[var(--color-text-secondary)]">
+                    <span className="text-[var(--color-text-muted)]">Last sync: </span>{integration.lastSync}
+                  </p>
+                )}
               </div>
             )}
 
@@ -254,6 +393,19 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('LiftyGo');
   const [workspaceName, setWorkspaceName] = useState('itay-workspace');
   const [saved, setSaved] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const { isMockMode, setMockMode, canToggle } = useMockMode();
+
+  // Check admin role on mount
+  useEffect(() => {
+    import('@/lib/supabase/client').then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user?.app_metadata?.role === 'admin') setIsAdmin(true);
+      });
+    });
+  }, []);
 
   const [aiProvider, setAiProvider] = useState('claude');
   const [apiKey, setApiKey] = useState('');
@@ -334,14 +486,59 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Admin Controls — only visible to admins */}
+          {isAdmin && (
+            <Card className="max-w-xl border-[#F59E0B]/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-[#F59E0B]">
+                  <ShieldAlert className="w-4 h-4" />
+                  Admin Controls
+                </CardTitle>
+                <CardDescription>Visible to admins only</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Mock mode warning banner */}
+                {isMockMode && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#F59E0B]/40 bg-[#F59E0B]/10 text-xs text-[#F59E0B]">
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                    Mock mode is active — screens show placeholder data
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-[var(--color-text)]">Mock Mode</Label>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Show placeholder data instead of live data across all screens.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {isMockMode ? 'ON' : 'OFF'}
+                    </span>
+                    <Switch
+                      checked={isMockMode}
+                      onCheckedChange={(checked) => setMockMode(checked)}
+                      disabled={!canToggle}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Integrations Tab */}
         <TabsContent value="integrations">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {INTEGRATIONS.map((integration) => (
-              <IntegrationCard key={integration.id} integration={integration} />
-            ))}
+            {INTEGRATIONS.map((integration) =>
+              integration.id === 'meta' ? (
+                <MetaIntegrationCard key={integration.id} integration={integration} />
+              ) : (
+                <IntegrationCard key={integration.id} integration={integration} />
+              )
+            )}
           </div>
         </TabsContent>
 

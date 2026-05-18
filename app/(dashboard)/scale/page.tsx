@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, CheckCircle2, Circle, AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import {
   RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer,
@@ -11,14 +11,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
+import { getOrCreateWorkspace } from '@/lib/workspace';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ReadinessStatus = 'Not Ready' | 'Needs More Testing' | 'Winner Detected' | 'Ready to Scale';
 
 interface Metrics {
   winners: string;
-  cac: string;
-  ltv: string;
+  avg_cac: string;
+  avg_ltv: string;
   roas: string;
   conversionConsistency: number;
   spendStability: number;
@@ -29,40 +31,38 @@ interface ScoreResult {
   status: ReadinessStatus;
 }
 
-// ─── Scoring Logic ────────────────────────────────────────────────────────────
+// ─── Scoring Logic (updated per spec) ────────────────────────────────────────
 function calcScore(m: Metrics): ScoreResult {
   let score = 0;
 
   const winners = parseInt(m.winners) || 0;
-  const cac = parseFloat(m.cac) || 0;
-  const ltv = parseFloat(m.ltv) || 0;
+  const cac = parseFloat(m.avg_cac) || 0;
+  const ltv = parseFloat(m.avg_ltv) || 0;
   const roas = parseFloat(m.roas) || 0;
   const conv = m.conversionConsistency;
   const spend = m.spendStability;
 
-  // Winners found (0-25 pts)
+  // Winners (0-25 pts)
   if (winners >= 3) score += 25;
-  else if (winners === 2) score += 15;
-  else if (winners === 1) score += 8;
 
-  // CAC < LTV / 3 (0-20 pts)
+  // LTV / CAC (0-25 pts)
   if (cac > 0 && ltv > 0) {
-    if (cac < ltv / 3) score += 20;
-    else if (cac < ltv / 2) score += 10;
-    else if (cac < ltv) score += 5;
+    const ratio = ltv / cac;
+    if (ratio >= 3) score += 25;
+    else if (ratio >= 1.5) score += 12;
   }
 
-  // ROAS > 2.5 (0-20 pts)
-  if (roas >= 3) score += 20;
-  else if (roas >= 2.5) score += 15;
-  else if (roas >= 2) score += 8;
-  else if (roas >= 1.5) score += 4;
+  // ROAS (0-20 pts)
+  if (roas >= 2.5) score += 20;
+  else if (roas >= 1.5) score += 10;
 
-  // Spend stability (0-20 pts)
-  score += Math.round((spend / 100) * 20);
+  // Spend stability (0-15 pts)
+  if (spend >= 70) score += 15;
+  else if (spend >= 50) score += 7;
 
   // Conversion consistency (0-15 pts)
-  score += Math.round((conv / 100) * 15);
+  if (conv >= 70) score += 15;
+  else if (conv >= 50) score += 7;
 
   score = Math.min(100, Math.max(0, score));
 
@@ -91,10 +91,16 @@ const RECOMMENDATIONS: Record<ReadinessStatus, string> = {
 
 const CHECKLIST_ITEMS = [
   { key: 'winners', label: 'Minimum 3 winners detected', check: (m: Metrics) => parseInt(m.winners) >= 3 },
-  { key: 'cac', label: 'CAC < LTV / 3', check: (m: Metrics) => parseFloat(m.cac) > 0 && parseFloat(m.ltv) > 0 && parseFloat(m.cac) < parseFloat(m.ltv) / 3 },
-  { key: 'roas', label: 'ROAS > 2.5 consistently', check: (m: Metrics) => parseFloat(m.roas) >= 2.5 },
-  { key: 'spend', label: 'Spend stability > 70%', check: (m: Metrics) => m.spendStability >= 70 },
-  { key: 'conv', label: 'Conversion rate consistent for 14 days', check: (m: Metrics) => m.conversionConsistency >= 70 },
+  {
+    key: 'cac', label: 'LTV:CAC ≥ 3x', check: (m: Metrics) => {
+      const cac = parseFloat(m.avg_cac);
+      const ltv = parseFloat(m.avg_ltv);
+      return cac > 0 && ltv > 0 && ltv / cac >= 3;
+    }
+  },
+  { key: 'roas', label: 'ROAS ≥ 2.5x consistently', check: (m: Metrics) => parseFloat(m.roas) >= 2.5 },
+  { key: 'spend', label: 'Spend stability ≥ 70%', check: (m: Metrics) => m.spendStability >= 70 },
+  { key: 'conv', label: 'Conversion consistency ≥ 70%', check: (m: Metrics) => m.conversionConsistency >= 70 },
 ];
 
 // ─── Gauge Display ────────────────────────────────────────────────────────────
@@ -123,14 +129,12 @@ function ScoreGauge({ score, status }: { score: number; status: ReadinessStatus 
           </RadialBarChart>
         </ResponsiveContainer>
 
-        {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-5xl font-black" style={{ color: cfg.color }}>{score}</span>
           <span className="text-xs text-[var(--color-text-muted)] mt-1">/ 100</span>
         </div>
       </div>
 
-      {/* Status badge */}
       <div
         className="mt-2 px-5 py-2 rounded-full text-sm font-semibold flex items-center gap-2"
         style={{ background: cfg.bg, color: cfg.color }}
@@ -144,31 +148,17 @@ function ScoreGauge({ score, status }: { score: number; status: ReadinessStatus 
 
 // ─── Input Card ───────────────────────────────────────────────────────────────
 function MetricInput({
-  label,
-  id,
-  prefix,
-  suffix,
-  type = 'number',
-  placeholder,
-  value,
-  onChange,
+  label, id, prefix, suffix, type = 'number', placeholder, value, onChange,
 }: {
-  label: string;
-  id: string;
-  prefix?: string;
-  suffix?: string;
-  type?: string;
-  placeholder?: string;
-  value: string;
+  label: string; id: string; prefix?: string; suffix?: string;
+  type?: string; placeholder?: string; value: string;
   onChange: (v: string) => void;
 }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs text-[var(--color-text-muted)]">{label}</Label>
       <div className="relative flex items-center">
-        {prefix && (
-          <span className="absolute left-3 text-sm text-[var(--color-text-muted)]">{prefix}</span>
-        )}
+        {prefix && <span className="absolute left-3 text-sm text-[var(--color-text-muted)]">{prefix}</span>}
         <Input
           id={id}
           type={type}
@@ -177,9 +167,7 @@ function MetricInput({
           onChange={(e) => onChange(e.target.value)}
           className={cn(prefix && 'pl-7', suffix && 'pr-7')}
         />
-        {suffix && (
-          <span className="absolute right-3 text-sm text-[var(--color-text-muted)]">{suffix}</span>
-        )}
+        {suffix && <span className="absolute right-3 text-sm text-[var(--color-text-muted)]">{suffix}</span>}
       </div>
     </div>
   );
@@ -189,8 +177,8 @@ function MetricInput({
 export default function ScalePage() {
   const [metrics, setMetrics] = useState<Metrics>({
     winners: '',
-    cac: '',
-    ltv: '',
+    avg_cac: '',
+    avg_ltv: '',
     roas: '',
     conversionConsistency: 40,
     spendStability: 30,
@@ -198,11 +186,93 @@ export default function ScalePage() {
 
   const [result, setResult] = useState<ScoreResult>({ score: 0, status: 'Not Ready' });
   const [calculated, setCalculated] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleCalc = () => {
-    setResult(calcScore(metrics));
+  // ── Load on mount ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    async function load() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
+
+        const workspaceId = await getOrCreateWorkspace(supabase, user.id);
+
+        // Try loading existing scale score
+        const { data: scaleData } = await supabase
+          .from('scale_scores')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Also try auto-populate from latest LTV model
+        const { data: ltvData } = await supabase
+          .from('ltv_models')
+          .select('estimated_ltv, cac')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        setMetrics((prev) => ({
+          ...prev,
+          // Scale score fields take priority; fallback to LTV data for cac/ltv
+          winners: scaleData?.winners_count != null ? String(scaleData.winners_count) : prev.winners,
+          avg_cac: scaleData?.avg_cac != null
+            ? String(scaleData.avg_cac)
+            : ltvData?.cac != null ? String(ltvData.cac) : prev.avg_cac,
+          avg_ltv: scaleData?.avg_ltv != null
+            ? String(scaleData.avg_ltv)
+            : ltvData?.estimated_ltv != null ? String(ltvData.estimated_ltv) : prev.avg_ltv,
+          roas: scaleData?.roas != null ? String(scaleData.roas) : prev.roas,
+          conversionConsistency: scaleData?.conversion_consistency ?? prev.conversionConsistency,
+          spendStability: scaleData?.spend_stability ?? prev.spendStability,
+        }));
+      } catch {
+        // Silently fail — user starts with empty form
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  // ── Calculate & Save ──────────────────────────────────────────────────────
+  const handleCalc = useCallback(async () => {
+    const computed = calcScore(metrics);
+    setResult(computed);
     setCalculated(true);
-  };
+    setSaveError(null);
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const workspaceId = await getOrCreateWorkspace(supabase, user.id);
+
+      const { error } = await supabase
+        .from('scale_scores')
+        .upsert({
+          workspace_id: workspaceId,
+          winners_count: parseInt(metrics.winners) || null,
+          avg_cac: parseFloat(metrics.avg_cac) || null,
+          avg_ltv: parseFloat(metrics.avg_ltv) || null,
+          roas: parseFloat(metrics.roas) || null,
+          conversion_consistency: metrics.conversionConsistency,
+          spend_stability: metrics.spendStability,
+          score: computed.score,
+          status: computed.status,
+        }, { onConflict: 'workspace_id' });
+
+      if (error) setSaveError('Could not save — ' + error.message);
+    } catch {
+      setSaveError('Save failed. Changes will not persist.');
+    }
+  }, [metrics]);
 
   const updateMetric = useCallback((key: keyof Metrics, value: string | number) => {
     setMetrics((prev) => ({ ...prev, [key]: value }));
@@ -220,6 +290,12 @@ export default function ScalePage() {
         <h1 className="text-2xl font-bold text-[var(--color-text)]">Scale Readiness</h1>
         <p className="text-sm text-[var(--color-text-muted)] mt-1">Scale starts with pattern detection.</p>
       </div>
+
+      {saveError && (
+        <div className="px-4 py-2 rounded-lg border border-[#F59E0B]/40 bg-[#F59E0B]/10 text-xs text-[#F59E0B]">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Main Column */}
@@ -239,20 +315,20 @@ export default function ScalePage() {
                   onChange={(v) => updateMetric('winners', v)}
                 />
                 <MetricInput
-                  label="Current CAC"
-                  id="cac"
+                  label="Average CAC"
+                  id="avg_cac"
                   prefix="$"
                   placeholder="e.g. 45"
-                  value={metrics.cac}
-                  onChange={(v) => updateMetric('cac', v)}
+                  value={metrics.avg_cac}
+                  onChange={(v) => updateMetric('avg_cac', v)}
                 />
                 <MetricInput
-                  label="Current LTV"
-                  id="ltv"
+                  label="Average LTV"
+                  id="avg_ltv"
                   prefix="$"
                   placeholder="e.g. 240"
-                  value={metrics.ltv}
-                  onChange={(v) => updateMetric('ltv', v)}
+                  value={metrics.avg_ltv}
+                  onChange={(v) => updateMetric('avg_ltv', v)}
                 />
                 <MetricInput
                   label="Average ROAS"
@@ -293,9 +369,9 @@ export default function ScalePage() {
                 </div>
               </div>
 
-              <Button size="lg" className="w-full gap-2" onClick={handleCalc}>
+              <Button size="lg" className="w-full gap-2" onClick={handleCalc} disabled={loading}>
                 <RefreshCw className="w-4 h-4" />
-                Recalculate
+                {loading ? 'Loading...' : 'Recalculate'}
               </Button>
             </CardContent>
           </Card>

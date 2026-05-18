@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { MockModeProvider } from "@/lib/mock-mode";
 import {
   LayoutDashboard,
   Sparkles,
@@ -94,6 +95,7 @@ export default function DashboardLayout({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
+    <MockModeProvider>
     <TooltipProvider delayDuration={0}>
       <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
         {/* Sidebar */}
@@ -178,5 +180,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </TooltipProvider>
+    </MockModeProvider>
   );
 }

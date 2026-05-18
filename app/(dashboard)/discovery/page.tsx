@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Compass,
   Sparkles,
@@ -14,13 +14,12 @@ import {
   Filter,
   ArrowRight,
   Send,
-  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectTrigger,
@@ -31,43 +30,50 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type RiskLevel = 'conservative' | 'balanced' | 'aggressive';
 type HypothesisStatus = 'pending' | 'testing' | 'winner' | 'failed';
 
-interface HypothesisCard {
-  id: number;
-  subMarket: string;
+interface HypothesisRow {
+  id: string;
+  workspace_id: string;
+  sub_market: string | null;
+  pain_point: string | null;
+  desire: string | null;
   hook: string;
-  painPoint: string;
-  angle: string;
-  creativeType: 'UGC' | 'Founder' | 'Authority';
-  status: HypothesisStatus;
+  angle: string | null;
+  creative_type: string | null;
+  hypothesis_status: HypothesisStatus;
+  created_at: string;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Mock generation data (AI output placeholder) ────────────────────────────
 
-const MOCK_HYPOTHESES: HypothesisCard[] = [
-  { id: 1, subMarket: 'Fitness Coaches', hook: 'Why your clients quit after week 3 — and the 1 message that keeps them', painPoint: 'High client churn after initial excitement', angle: 'Retention', creativeType: 'Founder', status: 'pending' },
-  { id: 2, subMarket: 'Online Courses', hook: 'The completion method that turned 12% into 74% — in 30 days', painPoint: 'Low course completion rates', angle: 'Social Proof', creativeType: 'Authority', status: 'testing' },
-  { id: 3, subMarket: 'E-commerce', hook: 'Stop running ads until you fix this one checkout leak', painPoint: 'Cart abandonment at 70%+', angle: 'Problem-First', creativeType: 'Founder', status: 'pending' },
-  { id: 4, subMarket: 'SaaS Founders', hook: 'We got 1,200 trial sign-ups in 48h without a single ad dollar', painPoint: 'High CAC with paid channels only', angle: 'Contrarian', creativeType: 'UGC', status: 'winner' },
-  { id: 5, subMarket: 'Real Estate', hook: 'The DM script that books 3-4 calls a week from cold leads', painPoint: 'Low lead-to-call conversion', angle: 'Tactical', creativeType: 'Authority', status: 'pending' },
-  { id: 6, subMarket: 'Service Business', hook: 'How a 2-line follow-up email tripled our close rate', painPoint: 'Leads disappear after first contact', angle: 'Story', creativeType: 'Founder', status: 'failed' },
-  { id: 7, subMarket: 'Digital Agencies', hook: 'We fired 60% of our clients and revenue went up 40%', painPoint: 'Low-margin clients draining capacity', angle: 'Contrarian', creativeType: 'Founder', status: 'pending' },
-  { id: 8, subMarket: 'Health & Wellness', hook: 'The morning protocol busy moms are using to lose weight without a gym', painPoint: 'No time for traditional fitness', angle: 'Lifestyle Fit', creativeType: 'UGC', status: 'testing' },
-  { id: 9, subMarket: 'B2B Consulting', hook: 'Why your proposal is getting ghosted — and the fix that took 10 minutes', painPoint: 'Proposals not converting', angle: 'Diagnostic', creativeType: 'Authority', status: 'pending' },
-  { id: 10, subMarket: 'Coaching Programs', hook: 'The onboarding call that turns new clients into 12-month retainers', painPoint: 'Short LTV on coaching clients', angle: 'Retention', creativeType: 'Founder', status: 'pending' },
-  { id: 11, subMarket: 'E-learning', hook: '3 questions we ask before building any course — most creators skip all 3', painPoint: 'Courses that fail to sell', angle: 'Education', creativeType: 'Authority', status: 'winner' },
-  { id: 12, subMarket: 'Local Business', hook: 'How we got 200 5-star reviews in 60 days — no incentives, no bots', painPoint: 'Low review volume hurts local SEO', angle: 'Process', creativeType: 'UGC', status: 'pending' },
-  { id: 13, subMarket: 'SaaS', hook: 'The onboarding flow change that cut churn by 31% in one quarter', painPoint: 'High trial-to-paid churn', angle: 'Data-Driven', creativeType: 'Founder', status: 'testing' },
-  { id: 14, subMarket: 'Freelancers', hook: 'From $3k months to $18k months — same skills, different positioning', painPoint: 'Stuck in commoditized pricing', angle: 'Transformation', creativeType: 'UGC', status: 'pending' },
-  { id: 15, subMarket: 'Info Products', hook: 'The VSL framework that outperformed 7 years of a/b tests — in 2 weeks', painPoint: 'Declining VSL conversion rates', angle: 'Innovation', creativeType: 'Authority', status: 'pending' },
+const MOCK_GENERATED: Omit<HypothesisRow, 'id' | 'workspace_id' | 'created_at'>[] = [
+  { sub_market: 'Fitness Coaches', hook: 'Why your clients quit after week 3 — and the 1 message that keeps them', pain_point: 'High client churn after initial excitement', desire: 'Predictable client retention', angle: 'Retention', creative_type: 'Founder', hypothesis_status: 'pending' },
+  { sub_market: 'Online Courses', hook: 'The completion method that turned 12% into 74% — in 30 days', pain_point: 'Low course completion rates', desire: 'Engaged students who finish and refer', angle: 'Social Proof', creative_type: 'Authority', hypothesis_status: 'pending' },
+  { sub_market: 'E-commerce', hook: 'Stop running ads until you fix this one checkout leak', pain_point: 'Cart abandonment at 70%+', desire: 'More purchases from existing traffic', angle: 'Problem-First', creative_type: 'Founder', hypothesis_status: 'pending' },
+  { sub_market: 'SaaS Founders', hook: 'We got 1,200 trial sign-ups in 48h without a single ad dollar', pain_point: 'High CAC with paid channels only', desire: 'Predictable pipeline without ad dependency', angle: 'Contrarian', creative_type: 'UGC', hypothesis_status: 'pending' },
+  { sub_market: 'Real Estate', hook: 'The DM script that books 3-4 calls a week from cold leads', pain_point: 'Low lead-to-call conversion', desire: 'Consistent booked appointments', angle: 'Tactical', creative_type: 'Authority', hypothesis_status: 'pending' },
+  { sub_market: 'Service Business', hook: 'How a 2-line follow-up email tripled our close rate', pain_point: 'Leads disappear after first contact', desire: 'Higher close rate without more leads', angle: 'Story', creative_type: 'Founder', hypothesis_status: 'pending' },
+  { sub_market: 'Digital Agencies', hook: 'We fired 60% of our clients and revenue went up 40%', pain_point: 'Low-margin clients draining capacity', desire: 'Fewer, better clients at higher margin', angle: 'Contrarian', creative_type: 'Founder', hypothesis_status: 'pending' },
+  { sub_market: 'Health & Wellness', hook: 'The morning protocol busy moms are using to lose weight without a gym', pain_point: 'No time for traditional fitness', desire: 'Sustainable results that fit real life', angle: 'Lifestyle Fit', creative_type: 'UGC', hypothesis_status: 'pending' },
+  { sub_market: 'B2B Consulting', hook: 'Why your proposal is getting ghosted — and the fix that took 10 minutes', pain_point: 'Proposals not converting', desire: 'Proposals that close on first reply', angle: 'Diagnostic', creative_type: 'Authority', hypothesis_status: 'pending' },
 ];
 
-const STATUS_CONFIG: Record<HypothesisStatus, { label: string; badgeVariant: 'outline' | 'secondary' | 'default' | 'success' | 'warning' | 'danger'; icon: React.ComponentType<{ className?: string }> }> = {
+// ─── Status Config ────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<
+  HypothesisStatus,
+  {
+    label: string;
+    badgeVariant: 'outline' | 'secondary' | 'default' | 'success' | 'warning' | 'danger';
+    icon: React.ComponentType<{ className?: string }>;
+  }
+> = {
   pending: { label: 'Pending', badgeVariant: 'outline', icon: Clock },
   testing: { label: 'Testing', badgeVariant: 'secondary', icon: Clock },
   winner: { label: 'Winner', badgeVariant: 'success', icon: Trophy },
@@ -104,11 +110,11 @@ function HypothesisItem({
   onSend,
   onToggleTested,
 }: {
-  h: HypothesisCard;
-  onSend: (h: HypothesisCard) => void;
-  onToggleTested: (id: number) => void;
+  h: HypothesisRow;
+  onSend: (h: HypothesisRow) => void;
+  onToggleTested: (id: string) => void;
 }) {
-  const status = STATUS_CONFIG[h.status];
+  const status = STATUS_CONFIG[h.hypothesis_status];
   const StatusIcon = status.icon;
 
   return (
@@ -116,9 +122,12 @@ function HypothesisItem({
       <CardContent className="p-4 flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
           <Badge variant="secondary" className="text-[10px] uppercase tracking-wide shrink-0">
-            {h.subMarket}
+            {h.sub_market ?? 'General'}
           </Badge>
-          <Badge variant={status.badgeVariant} className="text-[10px] flex items-center gap-1 shrink-0">
+          <Badge
+            variant={status.badgeVariant}
+            className="text-[10px] flex items-center gap-1 shrink-0"
+          >
             <StatusIcon className="w-3 h-3" />
             {status.label}
           </Badge>
@@ -128,17 +137,28 @@ function HypothesisItem({
           {h.hook}
         </p>
 
-        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
-          {h.painPoint}
-        </p>
+        {h.pain_point && (
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+            {h.pain_point}
+          </p>
+        )}
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-[var(--color-border)] text-[var(--color-text-secondary)]">
-            {h.angle}
-          </span>
-          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium', CREATIVE_TYPE_COLORS[h.creativeType])}>
-            {h.creativeType}
-          </span>
+          {h.angle && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-[var(--color-border)] text-[var(--color-text-secondary)]">
+              {h.angle}
+            </span>
+          )}
+          {h.creative_type && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                CREATIVE_TYPE_COLORS[h.creative_type] ?? 'bg-[var(--color-border)] text-[var(--color-text-secondary)]'
+              )}
+            >
+              {h.creative_type}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 pt-1">
@@ -153,18 +173,60 @@ function HypothesisItem({
           </Button>
           <button
             onClick={() => onToggleTested(h.id)}
-            title="Mark as tested"
+            title="Mark as testing"
             className={cn(
               'h-7 w-7 rounded-lg border border-[var(--color-border)] flex items-center justify-center transition-colors hover:border-[var(--color-success)] hover:bg-[var(--color-success-dim)] shrink-0',
-              h.status === 'testing' && 'border-[var(--color-success)] bg-[var(--color-success-dim)]'
+              h.hypothesis_status === 'testing' &&
+                'border-[var(--color-success)] bg-[var(--color-success-dim)]'
             )}
           >
-            <CheckCircle2 className={cn('w-3.5 h-3.5', h.status === 'testing' ? 'text-[var(--color-success)]' : 'text-[var(--color-text-muted)]')} />
+            <CheckCircle2
+              className={cn(
+                'w-3.5 h-3.5',
+                h.hypothesis_status === 'testing'
+                  ? 'text-[var(--color-success)]'
+                  : 'text-[var(--color-text-muted)]'
+              )}
+            />
           </button>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+// ─── Workspace helper ─────────────────────────────────────────────────────────
+
+async function getOrCreateWorkspace(supabase: ReturnType<typeof createClient>): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: existing } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (existing?.id) return existing.id;
+
+  // Auto-create workspace from email domain
+  const domain = user.email?.split('@')[1] ?? 'workspace';
+  const workspaceName = `${domain}-workspace`;
+
+  const { data: created, error } = await supabase
+    .from('workspaces')
+    .insert({ user_id: user.id, name: workspaceName })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Failed to create workspace:', error);
+    return null;
+  }
+
+  return created.id;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -177,57 +239,118 @@ export default function DiscoveryPage() {
   const [riskLevel, setRiskLevel] = useState<RiskLevel>('balanced');
   const [context, setContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [hasResults, setHasResults] = useState(false);
-  const [hypotheses, setHypotheses] = useState<HypothesisCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hypotheses, setHypotheses] = useState<HypothesisRow[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  const handleGenerate = () => {
+  // Load hypotheses on mount
+  const loadHypotheses = useCallback(async (wsId: string) => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('hypotheses')
+      .select('*')
+      .eq('workspace_id', wsId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setHypotheses(data as HypothesisRow[]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    getOrCreateWorkspace(supabase).then((wsId) => {
+      setWorkspaceId(wsId);
+      if (wsId) {
+        loadHypotheses(wsId).finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
+    });
+  }, [loadHypotheses]);
+
+  const handleGenerate = async () => {
+    if (!workspaceId) return;
     setIsGenerating(true);
-    setHasResults(false);
-    setTimeout(() => {
-      setHypotheses(MOCK_HYPOTHESES);
-      setIsGenerating(false);
-      setHasResults(true);
-    }, 2200);
+
+    // Simulate AI generation delay
+    await new Promise((resolve) => setTimeout(resolve, 2200));
+
+    const supabase = createClient();
+    const rows = MOCK_GENERATED.map((h) => ({
+      ...h,
+      workspace_id: workspaceId,
+    }));
+
+    const { data, error } = await supabase
+      .from('hypotheses')
+      .insert(rows)
+      .select();
+
+    if (!error && data) {
+      setHypotheses((prev) => [...(data as HypothesisRow[]), ...prev]);
+    }
+
+    setIsGenerating(false);
   };
 
-  const handleToggleTested = (id: number) => {
-    setHypotheses(prev =>
-      prev.map(h =>
-        h.id === id
-          ? { ...h, status: h.status === 'testing' ? 'pending' : 'testing' as HypothesisStatus }
-          : h
-      )
+  const handleToggleTested = async (id: string) => {
+    const current = hypotheses.find((h) => h.id === id);
+    if (!current) return;
+
+    const newStatus: HypothesisStatus =
+      current.hypothesis_status === 'testing' ? 'pending' : 'testing';
+
+    // Optimistic update
+    setHypotheses((prev) =>
+      prev.map((h) => (h.id === id ? { ...h, hypothesis_status: newStatus } : h))
     );
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('hypotheses')
+      .update({ hypothesis_status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      // Revert on failure
+      setHypotheses((prev) =>
+        prev.map((h) => (h.id === id ? { ...h, hypothesis_status: current.hypothesis_status } : h))
+      );
+    }
   };
 
-  const handleSend = (h: HypothesisCard) => {
-    // In a real app, this would navigate to /creative with the hypothesis pre-selected
-    alert(`Sending to Creative Machine: "${h.hook.slice(0, 60)}..."`);
+  const handleSend = (h: HypothesisRow) => {
+    // Store in sessionStorage so Creative Machine can read it
+    sessionStorage.setItem('selected_hypothesis', JSON.stringify({ id: h.id, hook: h.hook, sub_market: h.sub_market }));
+    window.location.href = '/creative';
   };
 
-  const filteredHypotheses = hypotheses.filter(h => {
+  const filteredHypotheses = hypotheses.filter((h) => {
     if (activeTab === 'all') return true;
-    return h.status === activeTab;
+    return h.hypothesis_status === activeTab;
   });
 
   const sortedHypotheses = [...filteredHypotheses].sort((a, b) => {
-    if (sortOrder === 'winners') return a.status === 'winner' ? -1 : 1;
-    return a.id - b.id;
+    if (sortOrder === 'winners') return a.hypothesis_status === 'winner' ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const counts = {
     all: hypotheses.length,
-    pending: hypotheses.filter(h => h.status === 'pending').length,
-    testing: hypotheses.filter(h => h.status === 'testing').length,
-    winner: hypotheses.filter(h => h.status === 'winner').length,
-    failed: hypotheses.filter(h => h.status === 'failed').length,
+    pending: hypotheses.filter((h) => h.hypothesis_status === 'pending').length,
+    testing: hypotheses.filter((h) => h.hypothesis_status === 'testing').length,
+    winner: hypotheses.filter((h) => h.hypothesis_status === 'winner').length,
+    failed: hypotheses.filter((h) => h.hypothesis_status === 'failed').length,
   };
+
+  const hasResults = hypotheses.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      {/* ── Left Panel ── */}
+      {/* Left Panel */}
       <aside className="w-[300px] shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card)] flex flex-col overflow-y-auto">
         <div className="p-5 border-b border-[var(--color-border)]">
           <h2 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wider">
@@ -312,7 +435,6 @@ export default function DiscoveryPage() {
           <div className="flex flex-col gap-2">
             <Label className="text-xs text-[var(--color-text-secondary)] font-medium">Risk Level</Label>
             <div className="flex flex-col gap-2">
-              {/* Conservative */}
               <button
                 onClick={() => setRiskLevel('conservative')}
                 className={cn(
@@ -322,14 +444,31 @@ export default function DiscoveryPage() {
                     : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-secondary)]/40'
                 )}
               >
-                <Shield className={cn('w-4 h-4 shrink-0', riskLevel === 'conservative' ? 'text-[var(--color-secondary)]' : 'text-[var(--color-text-muted)]')} />
+                <Shield
+                  className={cn(
+                    'w-4 h-4 shrink-0',
+                    riskLevel === 'conservative'
+                      ? 'text-[var(--color-secondary)]'
+                      : 'text-[var(--color-text-muted)]'
+                  )}
+                />
                 <div>
-                  <p className={cn('text-xs font-semibold', riskLevel === 'conservative' ? 'text-[var(--color-secondary)]' : 'text-[var(--color-text)]')}>Conservative</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Proven angles, low risk</p>
+                  <p
+                    className={cn(
+                      'text-xs font-semibold',
+                      riskLevel === 'conservative'
+                        ? 'text-[var(--color-secondary)]'
+                        : 'text-[var(--color-text)]'
+                    )}
+                  >
+                    Conservative
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                    Proven angles, low risk
+                  </p>
                 </div>
               </button>
 
-              {/* Balanced */}
               <button
                 onClick={() => setRiskLevel('balanced')}
                 className={cn(
@@ -339,14 +478,31 @@ export default function DiscoveryPage() {
                     : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-accent)]/40'
                 )}
               >
-                <Scale className={cn('w-4 h-4 shrink-0', riskLevel === 'balanced' ? 'text-[var(--color-accent-light)]' : 'text-[var(--color-text-muted)]')} />
+                <Scale
+                  className={cn(
+                    'w-4 h-4 shrink-0',
+                    riskLevel === 'balanced'
+                      ? 'text-[var(--color-accent-light)]'
+                      : 'text-[var(--color-text-muted)]'
+                  )}
+                />
                 <div>
-                  <p className={cn('text-xs font-semibold', riskLevel === 'balanced' ? 'text-[var(--color-accent-light)]' : 'text-[var(--color-text)]')}>Balanced</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Mix of safe and bold ideas</p>
+                  <p
+                    className={cn(
+                      'text-xs font-semibold',
+                      riskLevel === 'balanced'
+                        ? 'text-[var(--color-accent-light)]'
+                        : 'text-[var(--color-text)]'
+                    )}
+                  >
+                    Balanced
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                    Mix of safe and bold ideas
+                  </p>
                 </div>
               </button>
 
-              {/* Aggressive */}
               <button
                 onClick={() => setRiskLevel('aggressive')}
                 className={cn(
@@ -356,10 +512,28 @@ export default function DiscoveryPage() {
                     : 'border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-warning)]/40'
                 )}
               >
-                <Flame className={cn('w-4 h-4 shrink-0', riskLevel === 'aggressive' ? 'text-[var(--color-warning)]' : 'text-[var(--color-text-muted)]')} />
+                <Flame
+                  className={cn(
+                    'w-4 h-4 shrink-0',
+                    riskLevel === 'aggressive'
+                      ? 'text-[var(--color-warning)]'
+                      : 'text-[var(--color-text-muted)]'
+                  )}
+                />
                 <div>
-                  <p className={cn('text-xs font-semibold', riskLevel === 'aggressive' ? 'text-[var(--color-warning)]' : 'text-[var(--color-text)]')}>Aggressive</p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">High-risk, high-reward angles</p>
+                  <p
+                    className={cn(
+                      'text-xs font-semibold',
+                      riskLevel === 'aggressive'
+                        ? 'text-[var(--color-warning)]'
+                        : 'text-[var(--color-text)]'
+                    )}
+                  >
+                    Aggressive
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                    High-risk, high-reward angles
+                  </p>
                 </div>
               </button>
             </div>
@@ -368,13 +542,14 @@ export default function DiscoveryPage() {
           {/* Context */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-[var(--color-text-secondary)] font-medium">
-              Additional Context <span className="text-[var(--color-text-muted)]">(optional)</span>
+              Additional Context{' '}
+              <span className="text-[var(--color-text-muted)]">(optional)</span>
             </Label>
             <Textarea
-              placeholder="e.g. focus on retention, targeting women 30-45, avoid price objections..."
+              placeholder="e.g. focus on retention, targeting women 30-45..."
               className="min-h-[80px] text-xs"
               value={context}
-              onChange={e => setContext(e.target.value)}
+              onChange={(e) => setContext(e.target.value)}
             />
           </div>
 
@@ -383,7 +558,7 @@ export default function DiscoveryPage() {
             <Button
               className="w-full h-11 text-sm font-semibold gradient-accent border-0 shadow-lg shadow-[var(--color-accent)]/20 hover:shadow-[var(--color-accent)]/40 hover:brightness-110"
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || isLoading}
             >
               {isGenerating ? (
                 <>
@@ -406,10 +581,10 @@ export default function DiscoveryPage() {
         </div>
       </aside>
 
-      {/* ── Right Panel ── */}
+      {/* Right Panel */}
       <main className="flex-1 overflow-hidden flex flex-col">
         {/* Empty State */}
-        {!hasResults && !isGenerating && (
+        {!hasResults && !isGenerating && !isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
             <div className="w-16 h-16 rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)] flex items-center justify-center">
               <Compass className="w-8 h-8 text-[var(--color-text-muted)]" />
@@ -423,13 +598,22 @@ export default function DiscoveryPage() {
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading from DB */}
+        {isLoading && !isGenerating && (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="inline-block w-6 h-6 rounded-full border-2 border-[var(--color-accent)]/30 border-t-[var(--color-accent)] animate-spin" />
+          </div>
+        )}
+
+        {/* Generating shimmer */}
         {isGenerating && (
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-3">
                 <span className="inline-block w-4 h-4 rounded-full border-2 border-[var(--color-accent)]/30 border-t-[var(--color-accent)] animate-spin" />
-                <span className="text-sm font-medium text-[var(--color-text)]">Generating hypotheses...</span>
+                <span className="text-sm font-medium text-[var(--color-text)]">
+                  Generating hypotheses...
+                </span>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
@@ -443,44 +627,48 @@ export default function DiscoveryPage() {
         )}
 
         {/* Results */}
-        {hasResults && !isGenerating && (
+        {hasResults && !isGenerating && !isLoading && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Results Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] shrink-0">
               <div className="flex items-center gap-4">
                 <h2 className="text-sm font-semibold text-[var(--color-text)]">
-                  <span className="text-[var(--color-accent-light)] font-bold text-base">{hypotheses.length}</span>
-                  {' '}Hypotheses Generated
+                  <span className="text-[var(--color-accent-light)] font-bold text-base">
+                    {hypotheses.length}
+                  </span>{' '}
+                  Hypotheses
                 </h2>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="h-8">
-                    {(['all', 'pending', 'testing', 'winner', 'failed'] as const).map(tab => (
-                      <TabsTrigger key={tab} value={tab} className="text-xs px-2.5 py-1 capitalize h-6">
-                        {tab === 'all' ? `All (${counts.all})` : `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${counts[tab]})`}
+                    {(['all', 'pending', 'testing', 'winner', 'failed'] as const).map((tab) => (
+                      <TabsTrigger
+                        key={tab}
+                        value={tab}
+                        className="text-xs px-2.5 py-1 capitalize h-6"
+                      >
+                        {tab === 'all'
+                          ? `All (${counts.all})`
+                          : `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${counts[tab]})`}
                       </TabsTrigger>
                     ))}
                   </TabsList>
                 </Tabs>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Select value={sortOrder} onValueChange={setSortOrder}>
-                  <SelectTrigger className="h-8 text-xs w-36">
-                    <Filter className="w-3 h-3 mr-1.5 text-[var(--color-text-muted)]" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="winners">Winners First</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="h-8 text-xs w-36">
+                  <Filter className="w-3 h-3 mr-1.5 text-[var(--color-text-muted)]" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="winners">Winners First</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Grid */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-3 gap-4">
-                {sortedHypotheses.map(h => (
+                {sortedHypotheses.map((h) => (
                   <HypothesisItem
                     key={h.id}
                     h={h}
@@ -491,7 +679,9 @@ export default function DiscoveryPage() {
               </div>
               {sortedHypotheses.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <p className="text-[var(--color-text-muted)] text-sm">No hypotheses match this filter</p>
+                  <p className="text-[var(--color-text-muted)] text-sm">
+                    No hypotheses match this filter
+                  </p>
                 </div>
               )}
             </div>
