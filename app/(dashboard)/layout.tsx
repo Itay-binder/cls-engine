@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MockModeProvider } from "@/lib/mock-mode";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Sparkles,
-  Compass,
+  Map,
   Wand2,
   Trophy,
   TrendingUp,
   Rocket,
   Settings,
+  LogOut,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -29,11 +31,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Onboarding", href: "/onboarding", icon: Sparkles },
-  { label: "Discovery", href: "/discovery", icon: Compass },
+  { label: "Creative Map", href: "/map", icon: Map },
   { label: "Creative Machine", href: "/creative", icon: Wand2 },
   { label: "Winners", href: "/winners", icon: Trophy },
-  { label: "LTV Engine", href: "/ltv-engine", icon: TrendingUp },
-  { label: "Scale Readiness", href: "/scale-readiness", icon: Rocket },
+  { label: "LTV Engine", href: "/ltv", icon: TrendingUp },
+  { label: "Scale Readiness", href: "/scale", icon: Rocket },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -92,7 +94,22 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? "");
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <MockModeProvider>
@@ -139,22 +156,43 @@ export default function DashboardLayout({
           </nav>
 
           {/* User section */}
-          <div
-            className={cn(
-              "flex items-center border-t border-[var(--color-border)] px-3 py-3",
-              collapsed ? "justify-center" : "gap-3"
-            )}
-          >
-            <Avatar className="h-7 w-7 shrink-0">
-              <AvatarFallback className="text-[10px]">IB</AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-[var(--color-text)]">Itay Binder</p>
-                <p className="truncate text-[10px] text-[var(--color-text-muted)]">
-                  Itay@binder.co.il
-                </p>
-              </div>
+          <div className="border-t border-[var(--color-border)]">
+            <div
+              className={cn(
+                "flex items-center px-3 py-3",
+                collapsed ? "justify-center" : "gap-3"
+              )}
+            >
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarFallback className="text-[10px] bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] text-white">
+                  {userEmail ? userEmail[0].toUpperCase() : "U"}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-[var(--color-text)]">
+                    {userEmail || "Loading..."}
+                  </p>
+                </div>
+              )}
+              {!collapsed && (
+                <button
+                  onClick={handleLogout}
+                  className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {collapsed && (
+              <button
+                onClick={handleLogout}
+                className="w-full flex justify-center px-2 pb-3 text-[var(--color-text-muted)] hover:text-[var(--color-danger)] transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
 
