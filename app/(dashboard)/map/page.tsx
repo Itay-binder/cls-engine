@@ -303,14 +303,14 @@ function StepProgressBar({ step }: { step: 1 | 2 | 3 | 4 }) {
   ];
 
   return (
-    <div className="flex items-center gap-0 px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-card)] shrink-0">
+    <div className="flex items-center gap-0 px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--color-border)] bg-[var(--color-card)] shrink-0 overflow-x-auto">
       {steps.map((s, i) => {
         const Icon = s.icon;
         const isActive = step === s.num;
         const isDone = step > s.num;
         return (
-          <div key={s.num} className="flex items-center">
-            <div className="flex items-center gap-2">
+          <div key={s.num} className="flex items-center shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div
                 className={cn(
                   'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all duration-200',
@@ -325,7 +325,7 @@ function StepProgressBar({ step }: { step: 1 | 2 | 3 | 4 }) {
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium',
+                  'hidden sm:inline text-xs font-medium',
                   isActive
                     ? 'text-[var(--color-text)]'
                     : isDone
@@ -339,7 +339,7 @@ function StepProgressBar({ step }: { step: 1 | 2 | 3 | 4 }) {
             {i < steps.length - 1 && (
               <div
                 className={cn(
-                  'mx-3 h-px w-12 transition-all duration-300',
+                  'mx-2 sm:mx-3 h-px w-6 sm:w-12 transition-all duration-300',
                   step > s.num ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border)]'
                 )}
               />
@@ -422,10 +422,10 @@ function Step1Avatars({
   };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       {/* Left Panel */}
-      <aside className="w-[320px] shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card)] flex flex-col overflow-y-auto">
-        <div className="p-5 border-b border-[var(--color-border)]">
+      <aside className="w-full md:w-[320px] md:shrink-0 border-b md:border-b-0 md:border-r border-[var(--color-border)] bg-[var(--color-card)] flex flex-col md:overflow-y-auto">
+        <div className="p-4 md:p-5 border-b border-[var(--color-border)]">
           <h2 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wider">
             Step 1 — Avatars
           </h2>
@@ -434,7 +434,7 @@ function Step1Avatars({
           </p>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col gap-5">
+        <div className="p-4 md:p-5 md:flex-1 flex flex-col gap-4 md:gap-5">
           {/* Avatar Count Slider */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -493,7 +493,7 @@ function Step1Avatars({
             CLS doesn't pre-define your audience. We generate hypotheses for the market to test.
           </p>
 
-          <div className="flex flex-col gap-2 mt-auto pt-2">
+          <div className="flex flex-col gap-2 md:mt-auto pt-2">
             <Button
               className="w-full h-11 text-sm font-semibold gradient-accent border-0 shadow-lg shadow-[var(--color-accent)]/20 hover:shadow-[var(--color-accent)]/40 hover:brightness-110"
               onClick={handleGenerate}
@@ -702,10 +702,10 @@ function Step2Angles({
   };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       {/* Left Panel */}
-      <aside className="w-[320px] shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card)] flex flex-col overflow-y-auto">
-        <div className="p-5 border-b border-[var(--color-border)]">
+      <aside className="w-full md:w-[320px] md:shrink-0 border-b md:border-b-0 md:border-r border-[var(--color-border)] bg-[var(--color-card)] flex flex-col md:overflow-y-auto">
+        <div className="p-4 md:p-5 border-b border-[var(--color-border)]">
           <h2 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wider">
             Step 2 — Angles
           </h2>
@@ -714,7 +714,7 @@ function Step2Angles({
           </p>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col gap-5">
+        <div className="p-4 md:p-5 md:flex-1 flex flex-col gap-4 md:gap-5">
           {/* Selected avatars chips */}
           <div className="flex flex-col gap-2">
             <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">
@@ -761,7 +761,7 @@ function Step2Angles({
             Each angle is a different way to speak to the same person — same audience, different entry point.
           </p>
 
-          <div className="flex flex-col gap-2 mt-auto pt-2">
+          <div className="flex flex-col gap-2 md:mt-auto pt-2">
             <Button
               className="w-full h-11 text-sm font-semibold gradient-accent border-0 shadow-lg shadow-[var(--color-accent)]/20 hover:brightness-110"
               onClick={handleGenerate}
@@ -957,7 +957,7 @@ function Step3Concepts({
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {ALL_CONCEPTS.map((concept) => {
             const isSelected = state.concepts.includes(concept.name);
             const colorClass = CONCEPT_COLORS[concept.name] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
@@ -1168,7 +1168,7 @@ function CreativeDrawer({
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[520px] bg-[#0D1422] border-l border-[var(--color-border)] z-50 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-0 h-full w-full sm:w-[520px] bg-[#0D1422] border-l border-[var(--color-border)] z-50 flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-[var(--color-border)] shrink-0">
           <div className="flex-1">
@@ -1331,6 +1331,7 @@ function Step4Matrix({
   const genRef = useRef<{
     loadCachedBrief: (key: string) => CreativeBrief | null;
     cellKey: (a: string, b: string, c: string) => string;
+    retryCell: (cell: { key: string; avatar: Avatar; angle: Angle; concept: string; businessProfile: BusinessProfile | null }) => Promise<void>;
   } | null>(null);
 
   const selectedAvatars = state.avatars.filter((a) => state.selectedAvatarIds.includes(a.id));
@@ -1341,8 +1342,8 @@ function Step4Matrix({
   // Start background generation of all cells
   useEffect(() => {
     let unsub: (() => void) | null = null;
-    import('@/lib/creative-generator').then(({ startGeneration, subscribeToGeneration, cellKey, loadCachedBrief }) => {
-      genRef.current = { loadCachedBrief, cellKey };
+    import('@/lib/creative-generator').then(({ startGeneration, subscribeToGeneration, cellKey, loadCachedBrief, retryCell }) => {
+      genRef.current = { loadCachedBrief, cellKey, retryCell };
 
       const cells = selectedAvatars.flatMap((avatar) =>
         selectedAngles
@@ -1396,6 +1397,14 @@ function Step4Matrix({
     if (brief) incrementCreativeCount();
   };
 
+  const handleRetryCell = async (avatarId: string, angle: Angle, concept: string) => {
+    if (!genRef.current) return;
+    const avatar = state.avatars.find((a) => a.id === avatarId);
+    if (!avatar) return;
+    const key = genRef.current.cellKey(avatarId, angle.id, concept);
+    await genRef.current.retryCell({ key, avatar, angle, concept, businessProfile: state.businessProfile });
+  };
+
   const handleSaveToLibrary = async (brief: CreativeBrief): Promise<boolean> => {
     try {
       const res = await fetch('/api/creative/save', {
@@ -1433,19 +1442,19 @@ function Step4Matrix({
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-6 py-3 border-b border-[var(--color-border)] shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start sm:items-center justify-between mb-2 gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
             <h2 className="text-sm font-semibold text-[var(--color-text)]">Creative Matrix</h2>
-            <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 text-[11px] text-[var(--color-text-muted)]">
               <span className="text-[var(--color-accent-light)] font-bold">{totalCombinations}</span>
               <span>combinations</span>
-              <span className="text-[var(--color-border)]">·</span>
-              <span>{selectedAvatars.length} avatars × {selectedAngles.length} angles × {state.concepts.length} concepts</span>
+              <span className="hidden sm:inline text-[var(--color-border)]">·</span>
+              <span className="hidden sm:inline">{selectedAvatars.length} avatars × {selectedAngles.length} angles × {state.concepts.length} concepts</span>
             </div>
           </div>
           <Button
             variant="ghost"
-            className="text-xs text-[var(--color-text-muted)]"
+            className="text-xs text-[var(--color-text-muted)] shrink-0"
             onClick={() => setState((prev) => ({ ...prev, step: 3 }))}
           >
             ← Back
@@ -1466,7 +1475,7 @@ function Step4Matrix({
                 }}
               />
             </div>
-            <span className="text-[11px] text-[var(--color-text-muted)] shrink-0 min-w-[140px] text-right">
+            <span className="text-[11px] text-[var(--color-text-muted)] shrink-0 min-w-[100px] sm:min-w-[140px] text-right">
               {isRunning ? (
                 <>
                   <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse mr-1" />
@@ -1602,8 +1611,14 @@ function Step4Matrix({
                             </div>
                           ) : hasError ? (
                             /* Error */
-                            <div className="flex flex-col gap-1 py-1">
+                            <div className="flex flex-col gap-1.5 py-1">
                               <span className="text-[9px] text-red-400">✕ Failed</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); displayAvatarId && handleRetryCell(displayAvatarId, angle, concept); }}
+                                className="text-[9px] text-[var(--color-accent-light)] hover:underline text-left w-fit"
+                              >
+                                ↻ Retry
+                              </button>
                             </div>
                           ) : (
                             /* Queued */

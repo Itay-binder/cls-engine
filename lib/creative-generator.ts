@@ -176,3 +176,39 @@ export function resetGeneration(): void {
   };
   notify();
 }
+
+export async function retryCell(cell: GenerationCell): Promise<void> {
+  state.errors.delete(cell.key);
+  state.isRunning = true;
+  state.inProgress.add(cell.key);
+  notify();
+
+  try {
+    const res = await fetch('/api/ai/creative', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        avatar: cell.avatar,
+        angle: cell.angle,
+        concept: cell.concept,
+        businessProfile: cell.businessProfile,
+      }),
+    });
+
+    if (res.ok) {
+      const brief = await res.json() as CreativeBrief;
+      saveCachedBrief(cell.key, brief);
+      state.completed++;
+    } else {
+      state.errors.add(cell.key);
+    }
+  } catch {
+    state.errors.add(cell.key);
+  }
+
+  state.inProgress.delete(cell.key);
+  if (state.completed + state.errors.size >= state.total) {
+    state.isRunning = false;
+  }
+  notify();
+}

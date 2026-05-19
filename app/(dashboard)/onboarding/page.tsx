@@ -557,16 +557,30 @@ function NewBusinessForm({
         Back to my businesses
       </button>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[320px_1fr]">
-        {/* Left: Progress panel */}
-        <aside className="glass rounded-2xl p-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+        {/* Left: Progress panel — desktop only */}
+        <aside className="hidden lg:block glass rounded-2xl p-6">
           <ProgressPanel currentQuestion={currentQuestion} answers={answers} />
         </aside>
 
         {/* Right: Chat interface */}
         <div className="flex flex-col gap-4">
+          {/* Mobile mini progress bar */}
+          <div className="block lg:hidden">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-[var(--color-text-muted)]">Question {Math.min(currentQuestion, 5)} of 5</span>
+              <span className="text-xs font-semibold text-[var(--color-accent-light)]">{Math.round((Math.min(currentQuestion, 5) / 5) * 100)}%</span>
+            </div>
+            <div className="h-1 rounded-full bg-[var(--color-border)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#7C3AED] to-[#38BDF8] transition-all duration-700"
+                style={{ width: `${(Math.min(currentQuestion, 5) / 5) * 100}%` }}
+              />
+            </div>
+          </div>
+
           <Card className="glass flex-1 overflow-hidden">
-            <CardContent className="flex h-[520px] flex-col gap-4 overflow-y-auto p-6 pt-6">
+            <CardContent className="flex h-[300px] sm:h-[400px] lg:h-[520px] flex-col gap-4 overflow-y-auto p-4 sm:p-6 pt-4 sm:pt-6">
               {messages.map((msg, idx) => (
                 <ChatBubble
                   key={idx}
@@ -598,7 +612,7 @@ function NewBusinessForm({
               />
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="hidden sm:inline text-xs text-[var(--color-text-muted)]">
                   Enter to continue · Shift+Enter for new line
                 </span>
                 <div className="flex items-center gap-2">
