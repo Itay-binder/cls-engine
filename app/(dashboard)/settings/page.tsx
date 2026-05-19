@@ -5,9 +5,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Settings2, Link2, CreditCard, Bot,
   CheckCircle2, XCircle, ChevronRight, Eye, EyeOff,
-  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert, Save, LogOut,
+  Zap, RefreshCw, Loader2, ShieldAlert, Save, LogOut,
 } from 'lucide-react';
 import { useMockMode } from '@/lib/mock-mode';
+import { MetaSetupWizard } from '@/components/meta-setup-wizard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -414,23 +415,9 @@ function RealIntegrationsTab() {
   const [aiTestResult, setAiTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
 
   // Meta state
-  const [connectingMeta, setConnectingMeta] = useState(false);
   const [disconnectingMeta, setDisconnectingMeta] = useState(false);
   const [testingMeta, setTestingMeta] = useState(false);
   const [metaTestResult, setMetaTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
-
-  // Meta manual override (for power users)
-  const [showManualMeta, setShowManualMeta] = useState(false);
-  const [metaToken, setMetaToken] = useState('');
-  const [metaAccountId, setMetaAccountId] = useState('');
-  const [metaPageId, setMetaPageId] = useState('');
-  const [showMetaToken, setShowMetaToken] = useState(false);
-  const [savingMeta, setSavingMeta] = useState(false);
-  const [metaSaved, setMetaSaved] = useState(false);
-
-  // Read OAuth result from URL
-  const metaConnected = searchParams.get('meta_connected') === '1';
-  const metaError = searchParams.get('meta_error');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -438,23 +425,11 @@ function RealIntegrationsTab() {
     if (res.ok) {
       const data = await res.json() as IntegrationState;
       setState(data);
-      setMetaAccountId(data.meta_ad_account_id ?? '');
-      setMetaPageId(data.meta_page_id ?? '');
     }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  // Clear URL params after reading
-  useEffect(() => {
-    if (metaConnected || metaError) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('meta_connected');
-      params.delete('meta_error');
-      router.replace(`/settings?${params.toString()}`, { scroll: false });
-    }
-  }, [metaConnected, metaError, router, searchParams]);
 
   const handleSaveAI = async () => {
     setSavingAI(true);
@@ -488,15 +463,11 @@ function RealIntegrationsTab() {
     setTestingAI(false);
   };
 
-  const handleConnectMeta = () => {
-    setConnectingMeta(true);
-    window.location.href = '/api/meta/connect';
-  };
-
   const handleDisconnectMeta = async () => {
     setDisconnectingMeta(true);
     await fetch('/api/meta/disconnect', { method: 'POST' });
     setDisconnectingMeta(false);
+    setMetaTestResult('idle');
     await load();
   };
 
@@ -510,27 +481,6 @@ function RealIntegrationsTab() {
       setMetaTestResult('fail');
     }
     setTestingMeta(false);
-  };
-
-  const handleSaveMeta = async () => {
-    setSavingMeta(true);
-    const res = await fetch('/api/user/integrations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        meta_access_token: metaToken || null,
-        meta_ad_account_id: metaAccountId || null,
-        meta_page_id: metaPageId || null,
-      }),
-    });
-    setSavingMeta(false);
-    if (res.ok) {
-      setMetaToken('');
-      setMetaSaved(true);
-      setTimeout(() => setMetaSaved(false), 2500);
-      setShowManualMeta(false);
-      await load();
-    }
   };
 
   if (loading) {
@@ -642,22 +592,7 @@ function RealIntegrationsTab() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-
-          {/* OAuth success / error feedback */}
-          {metaConnected && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#22c55e15] border border-[#22C55E]/20 text-xs text-[#22C55E]">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              Meta account connected successfully!
-            </div>
-          )}
-          {metaError && (
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-danger-dim)]/20 border border-[var(--color-danger)]/20 text-xs text-[var(--color-danger)]">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              {metaError}
-            </div>
-          )}
-
+        <CardContent>
           {state?.meta_access_token_set ? (
             /* ── Connected state ── */
             <div className="space-y-3">
@@ -667,7 +602,6 @@ function RealIntegrationsTab() {
                   <span className="ml-3">Account: <span className="font-mono text-[var(--color-text)]">{state.meta_ad_account_id}</span></span>
                 )}
               </div>
-
               <div className="flex gap-2 flex-wrap">
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={handleTestMeta} disabled={testingMeta}>
                   {testingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
@@ -689,88 +623,8 @@ function RealIntegrationsTab() {
               </div>
             </div>
           ) : (
-            /* ── Not connected state ── */
-            <div className="space-y-4">
-              <div className="rounded-xl border border-[#0081FB]/20 bg-[#0081FB]/5 p-5 text-center space-y-4">
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  Connect your Meta account via Facebook login to sync your campaigns and ad data.
-                </p>
-                <Button
-                  className="gap-2 gradient-accent border-0 w-full"
-                  onClick={handleConnectMeta}
-                  disabled={connectingMeta}
-                >
-                  {connectingMeta ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  {connectingMeta ? 'Redirecting to Facebook...' : 'Connect with Facebook'}
-                </Button>
-              </div>
-
-              {/* Manual fallback toggle */}
-              <button
-                className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] underline transition-colors"
-                onClick={() => setShowManualMeta(!showManualMeta)}
-              >
-                {showManualMeta ? 'Hide manual setup' : 'Or enter token manually (advanced)'}
-              </button>
-            </div>
-          )}
-
-          {/* Manual token entry — shown when toggled or when user wants to update */}
-          {(showManualMeta || (state?.meta_access_token_set && showManualMeta)) && (
-            <div className="border border-[var(--color-border)] rounded-xl p-4 space-y-3">
-              <p className="text-xs text-[var(--color-text-muted)] font-medium">Manual token setup</p>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[var(--color-text-muted)]">Access Token</Label>
-                <div className="relative">
-                  <Input
-                    type={showMetaToken ? 'text' : 'password'}
-                    placeholder="EAANx..."
-                    value={metaToken}
-                    onChange={(e) => setMetaToken(e.target.value)}
-                    className="pr-10 font-mono text-xs"
-                  />
-                  <button
-                    onClick={() => setShowMetaToken(!showMetaToken)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                  >
-                    {showMetaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-[var(--color-text-muted)]">System User token from Meta Business Manager (never expires).</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[var(--color-text-muted)]">Ad Account ID</Label>
-                  <Input
-                    placeholder="act_123456789"
-                    value={metaAccountId}
-                    onChange={(e) => setMetaAccountId(e.target.value)}
-                    className="font-mono text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[var(--color-text-muted)]">Page ID</Label>
-                  <Input
-                    placeholder="10578..."
-                    value={metaPageId}
-                    onChange={(e) => setMetaPageId(e.target.value)}
-                    className="font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <Button
-                size="sm"
-                className="gap-1.5 gradient-accent border-0"
-                onClick={handleSaveMeta}
-                disabled={savingMeta || (!metaToken && !metaAccountId && !metaPageId)}
-              >
-                {savingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : metaSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-                {metaSaved ? 'Saved!' : 'Save'}
-              </Button>
-            </div>
+            /* ── Setup wizard ── */
+            <MetaSetupWizard onComplete={load} />
           )}
         </CardContent>
       </Card>
