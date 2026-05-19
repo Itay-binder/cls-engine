@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   },
   description: "AI-powered Growth Operating System — scale smarter, not harder.",
   keywords: ["CLS Engine", "growth", "ads", "AI", "marketing"],
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({

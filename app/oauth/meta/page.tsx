@@ -43,12 +43,31 @@ export default function MetaOAuthCallbackPage() {
       return;
     }
 
-    setToken(fbToken);
     window.history.replaceState(null, '', '/oauth/meta');
 
-    fetch(`/api/meta/ad-accounts?token=${encodeURIComponent(fbToken)}`)
-      .then((r) => r.json())
-      .then((data: { accounts?: AdAccount[]; error?: string }) => {
+    void (async () => {
+      // Try to upgrade to 60-day long-lived token
+      let finalToken = fbToken;
+      try {
+        const exRes = await fetch('/api/meta/exchange-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: fbToken }),
+        });
+        if (exRes.ok) {
+          const exData = (await exRes.json()) as { access_token?: string };
+          if (exData.access_token) finalToken = exData.access_token;
+        }
+      } catch {
+        // fall back to short-lived token
+      }
+
+      setToken(finalToken);
+
+      // Fetch ad accounts
+      try {
+        const r = await fetch(`/api/meta/ad-accounts?token=${encodeURIComponent(finalToken)}`);
+        const data = (await r.json()) as { accounts?: AdAccount[]; error?: string };
         if (data.error) {
           setErrorMsg(data.error);
           setPhase('error');
@@ -58,11 +77,11 @@ export default function MetaOAuthCallbackPage() {
         setAccounts(list);
         if (list.length === 1) setSelected(list[0]);
         setPhase('pick');
-      })
-      .catch(() => {
+      } catch {
         setErrorMsg('Network error. Please try again.');
         setPhase('error');
-      });
+      }
+    })();
   }, []);
 
   const handleSave = async () => {
@@ -222,7 +241,7 @@ export default function MetaOAuthCallbackPage() {
 
         {phase === 'pick' && (
           <p className="text-[11px] text-[var(--color-text-muted)] text-center leading-relaxed">
-            This token may expire. If your data stops loading, reconnect from Settings.
+            Token valid for ~60 days. You&apos;ll need to reconnect from Settings after it expires.
           </p>
         )}
       </div>

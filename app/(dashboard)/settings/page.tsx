@@ -6,7 +6,9 @@ import {
   Settings2, Link2, CreditCard, Bot,
   CheckCircle2, XCircle, ChevronRight, Eye, EyeOff,
   Zap, RefreshCw, Loader2, ShieldAlert, Save, LogOut,
+  Pencil, Trash2, Plus, Building2, AlertTriangle,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { useMockMode } from '@/lib/mock-mode';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -672,6 +674,218 @@ function RealIntegrationsTab() {
   );
 }
 
+// ─── Business Profile Manager ─────────────────────────────────────────────────
+
+interface BizProfile {
+  id: string;
+  business_name: string | null;
+  product_description: string | null;
+  current_offer: string | null;
+  market_notes: string | null;
+}
+
+function BusinessProfileManager() {
+  const [profiles, setProfiles] = useState<BizProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editForm, setEditForm] = useState<Omit<BizProfile, 'id'>>({
+    business_name: '',
+    product_description: '',
+    current_offer: '',
+    market_notes: '',
+  });
+
+  const load = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('business_profiles')
+      .select('id, business_name, product_description, current_offer, market_notes')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setProfiles((data ?? []) as BizProfile[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const startEdit = (p: BizProfile) => {
+    setEditingId(p.id);
+    setEditForm({
+      business_name: p.business_name ?? '',
+      product_description: p.product_description ?? '',
+      current_offer: p.current_offer ?? '',
+      market_notes: p.market_notes ?? '',
+    });
+  };
+
+  const handleSave = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    await fetch(`/api/business/${editingId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    });
+    setSaving(false);
+    setEditingId(null);
+    await load();
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    await fetch(`/api/business/${id}`, { method: 'DELETE' });
+    setDeleting(false);
+    setDeleteConfirmId(null);
+    await load();
+  };
+
+  if (loading) {
+    return <div className="shimmer h-24 rounded-xl" />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {profiles.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-6 text-center">
+          <Building2 className="w-8 h-8 text-[var(--color-text-muted)] mx-auto mb-2" />
+          <p className="text-sm text-[var(--color-text-muted)]">No business profiles yet.</p>
+          <a href="/onboarding" className="text-xs text-[var(--color-accent-light)] hover:underline mt-1 inline-block">
+            Create one →
+          </a>
+        </div>
+      ) : (
+        profiles.map((p) => (
+          <div key={p.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
+            {editingId === p.id ? (
+              /* Edit mode */
+              <div className="p-4 space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Business Name</label>
+                  <Input
+                    value={editForm.business_name ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, business_name: e.target.value }))}
+                    placeholder="Your business name"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Product / Service</label>
+                  <textarea
+                    value={editForm.product_description ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, product_description: e.target.value }))}
+                    placeholder="What do you sell?"
+                    rows={2}
+                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] text-sm px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Current Offer</label>
+                  <Input
+                    value={editForm.current_offer ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, current_offer: e.target.value }))}
+                    placeholder="e.g. 30-day trial, $197 course..."
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Market Notes</label>
+                  <textarea
+                    value={editForm.market_notes ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, market_notes: e.target.value }))}
+                    placeholder="Audience, competitors, positioning..."
+                    rows={2}
+                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] text-sm px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" className="gap-1.5 gradient-accent border-0" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                </div>
+              </div>
+            ) : deleteConfirmId === p.id ? (
+              /* Delete confirm */
+              <div className="p-4 bg-red-500/5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[var(--color-text)]">Delete &quot;{p.business_name ?? 'this business'}&quot;?</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">This can&apos;t be undone. Your creative maps using this profile won&apos;t be affected.</p>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1.5"
+                        onClick={() => handleDelete(p.id)}
+                        disabled={deleting}
+                      >
+                        {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* View mode */
+              <div className="p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building2 className="w-3.5 h-3.5 text-[var(--color-accent-light)] shrink-0" />
+                    <p className="text-sm font-semibold text-[var(--color-text)] truncate">
+                      {p.business_name ?? 'Unnamed Business'}
+                    </p>
+                  </div>
+                  {p.product_description && (
+                    <p className="text-xs text-[var(--color-text-muted)] line-clamp-1">{p.product_description}</p>
+                  )}
+                  {p.current_offer && (
+                    <p className="text-[11px] text-[var(--color-accent-light)] mt-1">Offer: {p.current_offer}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    onClick={() => startEdit(p)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-[var(--color-text-muted)] hover:text-red-400"
+                    onClick={() => setDeleteConfirmId(p.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+
+      <a
+        href="/onboarding"
+        className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent-light)] transition-colors pt-1"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Add new business profile
+      </a>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function SettingsPageContent() {
   const searchParams = useSearchParams();
@@ -755,6 +969,22 @@ function SettingsPageContent() {
                 {saved ? <CheckCircle2 className="w-4 h-4" /> : <Settings2 className="w-4 h-4" />}
                 {saved ? 'Saved!' : 'Save Changes'}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Business Profiles */}
+          <Card className="max-w-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-[var(--color-accent-light)]" />
+                <div>
+                  <CardTitle>Business Profiles</CardTitle>
+                  <CardDescription className="mt-0.5">Edit or remove the businesses you set up during onboarding.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <BusinessProfileManager />
             </CardContent>
           </Card>
 

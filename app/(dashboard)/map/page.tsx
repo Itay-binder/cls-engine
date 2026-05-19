@@ -1047,6 +1047,61 @@ function Step3Concepts({
   );
 }
 
+// ─── Free Plan Limit ─────────────────────────────────────────────────────────
+
+const CREATIVE_COUNT_KEY = 'cls-creative-count-v1';
+const FREE_PLAN_LIMIT = 30;
+
+function getCreativeCount(): number {
+  if (typeof window === 'undefined') return 0;
+  try { return parseInt(localStorage.getItem(CREATIVE_COUNT_KEY) ?? '0', 10) || 0; } catch { return 0; }
+}
+
+function incrementCreativeCount(): number {
+  const next = getCreativeCount() + 1;
+  try { localStorage.setItem(CREATIVE_COUNT_KEY, String(next)); } catch { /* ignore */ }
+  return next;
+}
+
+// ─── Upgrade Modal ────────────────────────────────────────────────────────────
+
+function UpgradeModal({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-[#0D1422] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl p-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-secondary)] flex items-center justify-center mx-auto mb-5">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">You've hit the free limit</h2>
+          <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+            The free plan includes <span className="text-white font-semibold">30 creative briefs</span>. Upgrade to CLS Pro for unlimited briefs, saved library, and full campaign export.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { window.location.href = '/pricing'; }}
+              className="w-full h-11 rounded-xl font-semibold text-sm text-white gradient-accent border-0 shadow-lg shadow-[var(--color-accent)]/20 hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              Upgrade to Pro — $97/mo
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full h-10 rounded-xl text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Maybe later
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-600 mt-4">
+            {getCreativeCount()} / {FREE_PLAN_LIMIT} briefs used on free plan
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Copy Button ─────────────────────────────────────────────────────────────
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -1069,6 +1124,33 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 // ─── Creative Drawer ──────────────────────────────────────────────────────────
 
+function BriefSkeleton() {
+  return (
+    <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+      {[
+        { label: 'HOOK', color: 'text-[var(--color-accent-light)]', lines: 1 },
+        { label: 'SCRIPT', color: 'text-[var(--color-secondary)]', lines: 5 },
+        { label: 'CAPTION', color: 'text-emerald-400', lines: 3 },
+        { label: 'VISUAL DIRECTION', color: 'text-amber-400', lines: 2 },
+        { label: 'PRODUCTION NOTES', color: 'text-sky-400', lines: 3 },
+        { label: 'VISUAL PROMPT', color: 'text-pink-400', lines: 2 },
+      ].map(({ label, color, lines }) => (
+        <div key={label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className={`text-[10px] uppercase tracking-wider font-bold ${color}`}>{label}</span>
+            <div className="shimmer h-3 w-10 rounded" />
+          </div>
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: lines }).map((_, i) => (
+              <div key={i} className={`shimmer h-3 rounded ${i === lines - 1 && lines > 1 ? 'w-2/3' : 'w-full'}`} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CreativeDrawer({
   state,
   onClose,
@@ -1084,40 +1166,26 @@ function CreativeDrawer({
 
   if (!state.activeCell) return null;
 
-  if (state.generatingCreative || !state.currentCreative) {
-    return (
-      <>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
-        <div className="fixed right-0 top-0 h-full w-[520px] bg-[#0D1422] border-l border-white/10 z-50 flex flex-col items-center justify-center gap-5 shadow-2xl">
-          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-white">Generating creative brief...</p>
-            <p className="text-xs text-gray-500 mt-1">Building hook, script & caption</p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
+  const isLoading = state.generatingCreative || !state.currentCreative;
   const brief = state.currentCreative;
   const avatar = state.avatars.find((a) => a.id === state.activeCell!.avatarId);
   const angle = state.angles.find((a) => a.id === state.activeCell!.angleId);
 
   const handleSave = async () => {
+    if (!brief) return;
     setSaving(true);
-    await onSave(brief);
+    await onSave(brief!);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const conceptColor = brief ? (CONCEPT_COLORS[brief.concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20') : '';
+
   return (
     <>
       {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
 
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-[520px] bg-[#0D1422] border-l border-[var(--color-border)] z-50 flex flex-col shadow-2xl">
@@ -1135,11 +1203,21 @@ function CreativeDrawer({
                   {angle.name}
                 </span>
               )}
-              <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border', CONCEPT_COLORS[brief.concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20')}>
-                {brief.concept}
-              </span>
+              {brief && (
+                <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border', conceptColor)}>
+                  {brief.concept}
+                </span>
+              )}
             </div>
-            <h2 className="text-sm font-semibold text-[var(--color-text)] mt-2">Creative Brief</h2>
+            <div className="flex items-center gap-2 mt-2">
+              <h2 className="text-sm font-semibold text-[var(--color-text)]">Creative Brief</h2>
+              {isLoading && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
+                  <span className="w-3 h-3 rounded-full border border-[var(--color-accent)] border-t-transparent animate-spin" />
+                  Generating...
+                </span>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors ml-3">
             <X className="w-5 h-5" />
@@ -1147,80 +1225,84 @@ function CreativeDrawer({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
-          {/* Hook */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-accent-light)]">Hook</span>
-              <CopyButton text={brief.hook} label="Copy" />
-            </div>
-            <p className="text-sm text-[var(--color-text)] leading-relaxed font-medium">{brief.hook}</p>
-          </div>
-
-          {/* Script */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-secondary)]">Script (30–60s)</span>
-              <CopyButton text={brief.script} label="Copy" />
-            </div>
-            <div className="text-xs text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
-              {brief.script}
-            </div>
-          </div>
-
-          {/* Caption */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400">Caption</span>
-              <CopyButton text={brief.caption} label="Copy" />
-            </div>
-            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">{brief.caption}</p>
-          </div>
-
-          {/* Visual Direction */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400">Visual Direction</span>
-              <CopyButton text={brief.visualDirection} label="Copy" />
-            </div>
-            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{brief.visualDirection}</p>
-          </div>
-
-          {/* Production Notes */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-sky-400">Production Notes</span>
-              <CopyButton text={brief.productionNotes} label="Copy" />
-            </div>
-            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{brief.productionNotes}</p>
-          </div>
-
-          {/* Image Prompt */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-pink-400">Visual Prompt</span>
-              <button
-                onClick={() => setShowImagePrompt((p) => !p)}
-                className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-accent-light)] transition-colors"
-              >
-                {showImagePrompt ? 'Hide' : 'Show'} prompt
-              </button>
-            </div>
-            {showImagePrompt ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed font-mono bg-[var(--color-background)] rounded-lg p-3">
-                  {brief.visualPrompt}
-                </p>
-                <CopyButton text={brief.visualPrompt} label="Copy for Midjourney / DALL-E" />
+        {isLoading ? (
+          <BriefSkeleton />
+        ) : brief ? (
+          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+            {/* Hook */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-accent-light)]">Hook</span>
+                <CopyButton text={brief.hook} label="Copy" />
               </div>
-            ) : (
-              <p className="text-[11px] text-[var(--color-text-muted)]">
-                <ImageIcon className="w-3 h-3 inline mr-1" />
-                Use this in Midjourney or DALL-E to generate a visual
-              </p>
-            )}
+              <p className="text-sm text-[var(--color-text)] leading-relaxed font-medium">{brief.hook}</p>
+            </div>
+
+            {/* Script */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--color-secondary)]">Script (30–60s)</span>
+                <CopyButton text={brief.script} label="Copy" />
+              </div>
+              <div className="text-xs text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">
+                {brief.script}
+              </div>
+            </div>
+
+            {/* Caption */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400">Caption</span>
+                <CopyButton text={brief.caption} label="Copy" />
+              </div>
+              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-line">{brief.caption}</p>
+            </div>
+
+            {/* Visual Direction */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400">Visual Direction</span>
+                <CopyButton text={brief.visualDirection} label="Copy" />
+              </div>
+              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{brief.visualDirection}</p>
+            </div>
+
+            {/* Production Notes */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-sky-400">Production Notes</span>
+                <CopyButton text={brief.productionNotes} label="Copy" />
+              </div>
+              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{brief.productionNotes}</p>
+            </div>
+
+            {/* Image Prompt */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-pink-400">Visual Prompt</span>
+                <button
+                  onClick={() => setShowImagePrompt((p) => !p)}
+                  className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-accent-light)] transition-colors"
+                >
+                  {showImagePrompt ? 'Hide' : 'Show'} prompt
+                </button>
+              </div>
+              {showImagePrompt ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed font-mono bg-[var(--color-background)] rounded-lg p-3">
+                    {brief.visualPrompt}
+                  </p>
+                  <CopyButton text={brief.visualPrompt} label="Copy for Midjourney / DALL-E" />
+                </div>
+              ) : (
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  <ImageIcon className="w-3 h-3 inline mr-1" />
+                  Use this in Midjourney or DALL-E to generate a visual
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Footer */}
         <div className="flex items-center gap-3 p-5 border-t border-[var(--color-border)] shrink-0">
@@ -1228,7 +1310,7 @@ function CreativeDrawer({
             variant="outline"
             className="flex-1"
             onClick={handleSave}
-            disabled={saving || saved}
+            disabled={isLoading || saving || saved}
           >
             {saved ? (
               <><CheckCircle2 className="w-4 h-4 mr-1.5 text-green-400" /> Saved!</>
@@ -1242,6 +1324,7 @@ function CreativeDrawer({
             variant="ghost"
             className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
             onClick={() => setShowImagePrompt(true)}
+            disabled={isLoading}
           >
             <ImageIcon className="w-3.5 h-3.5" />
             Generate Image
@@ -1261,11 +1344,16 @@ function Step4Matrix({
   state: CreativeMapState;
   setState: React.Dispatch<React.SetStateAction<CreativeMapState>>;
 }) {
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const selectedAvatars = state.avatars.filter((a) => state.selectedAvatarIds.includes(a.id));
   const selectedAngles = state.angles.filter((a) => state.selectedAngleIds.includes(a.id));
   const totalCombinations = selectedAvatars.length * selectedAngles.length * state.concepts.length;
 
   const handleCellClick = async (avatarId: string, angleId: string, concept: string) => {
+    if (getCreativeCount() >= FREE_PLAN_LIMIT) {
+      setShowUpgrade(true);
+      return;
+    }
     const avatar = state.avatars.find((a) => a.id === avatarId)!;
     const angle = state.angles.find((a) => a.id === angleId)!;
 
@@ -1294,6 +1382,7 @@ function Step4Matrix({
         return;
       }
       const brief = await res.json() as CreativeBrief;
+      incrementCreativeCount();
       setState((prev) => ({ ...prev, generatingCreative: false, currentCreative: brief, error: null }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Network error';
@@ -1447,6 +1536,9 @@ function Step4Matrix({
           onSave={handleSaveToLibrary}
         />
       )}
+
+      {/* Upgrade Modal */}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
     </div>
   );
 }
