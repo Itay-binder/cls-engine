@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Settings2, Link2, CreditCard, Bot,
   CheckCircle2, XCircle, ChevronRight, Eye, EyeOff,
-  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert, Save,
+  Zap, RefreshCw, AlertCircle, Loader2, ShieldAlert, Save, LogOut,
 } from 'lucide-react';
 import { useMockMode } from '@/lib/mock-mode';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -398,6 +399,9 @@ interface IntegrationState {
 }
 
 function RealIntegrationsTab() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [state, setState] = useState<IntegrationState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -409,15 +413,24 @@ function RealIntegrationsTab() {
   const [testingAI, setTestingAI] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
 
-  // Meta form
+  // Meta state
+  const [connectingMeta, setConnectingMeta] = useState(false);
+  const [disconnectingMeta, setDisconnectingMeta] = useState(false);
+  const [testingMeta, setTestingMeta] = useState(false);
+  const [metaTestResult, setMetaTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+
+  // Meta manual override (for power users)
+  const [showManualMeta, setShowManualMeta] = useState(false);
   const [metaToken, setMetaToken] = useState('');
   const [metaAccountId, setMetaAccountId] = useState('');
   const [metaPageId, setMetaPageId] = useState('');
   const [showMetaToken, setShowMetaToken] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaSaved, setMetaSaved] = useState(false);
-  const [testingMeta, setTestingMeta] = useState(false);
-  const [metaTestResult, setMetaTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+
+  // Read OAuth result from URL
+  const metaConnected = searchParams.get('meta_connected') === '1';
+  const metaError = searchParams.get('meta_error');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -432,6 +445,16 @@ function RealIntegrationsTab() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Clear URL params after reading
+  useEffect(() => {
+    if (metaConnected || metaError) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('meta_connected');
+      params.delete('meta_error');
+      router.replace(`/settings?${params.toString()}`, { scroll: false });
+    }
+  }, [metaConnected, metaError, router, searchParams]);
 
   const handleSaveAI = async () => {
     setSavingAI(true);
@@ -453,7 +476,6 @@ function RealIntegrationsTab() {
     setTestingAI(true);
     setAiTestResult('idle');
     try {
-      // Quick test: just hit the avatars endpoint with minimal data
       const res = await fetch('/api/ai/avatars', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -464,6 +486,30 @@ function RealIntegrationsTab() {
       setAiTestResult('fail');
     }
     setTestingAI(false);
+  };
+
+  const handleConnectMeta = () => {
+    setConnectingMeta(true);
+    window.location.href = '/api/meta/connect';
+  };
+
+  const handleDisconnectMeta = async () => {
+    setDisconnectingMeta(true);
+    await fetch('/api/meta/disconnect', { method: 'POST' });
+    setDisconnectingMeta(false);
+    await load();
+  };
+
+  const handleTestMeta = async () => {
+    setTestingMeta(true);
+    setMetaTestResult('idle');
+    try {
+      const res = await fetch('/api/meta/insights');
+      setMetaTestResult(res.ok ? 'ok' : 'fail');
+    } catch {
+      setMetaTestResult('fail');
+    }
+    setTestingMeta(false);
   };
 
   const handleSaveMeta = async () => {
@@ -482,20 +528,9 @@ function RealIntegrationsTab() {
       setMetaToken('');
       setMetaSaved(true);
       setTimeout(() => setMetaSaved(false), 2500);
+      setShowManualMeta(false);
       await load();
     }
-  };
-
-  const handleTestMeta = async () => {
-    setTestingMeta(true);
-    setMetaTestResult('idle');
-    try {
-      const res = await fetch('/api/meta/insights');
-      setMetaTestResult(res.ok ? 'ok' : 'fail');
-    } catch {
-      setMetaTestResult('fail');
-    }
-    setTestingMeta(false);
   };
 
   if (loading) {
@@ -586,7 +621,7 @@ function RealIntegrationsTab() {
       </Card>
 
       {/* ─── Meta Ads ────────────────────────────────────────────────────── */}
-      <Card>
+      <Card className={state?.meta_access_token_set ? undefined : 'border-[#0081FB]/30'}>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center">
@@ -598,7 +633,7 @@ function RealIntegrationsTab() {
                 {state?.meta_access_token_set ? (
                   <Badge variant="success" className="gap-1 text-[10px]"><CheckCircle2 className="w-2.5 h-2.5" /> Connected</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px]">Not configured</Badge>
+                  <Badge variant="danger" className="gap-1 text-[10px]"><XCircle className="w-2.5 h-2.5" /> Not connected</Badge>
                 )}
               </div>
               <CardDescription className="text-xs mt-0.5">
@@ -608,75 +643,135 @@ function RealIntegrationsTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {state?.meta_access_token_set && (
-            <div className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
-              Current token: <span className="font-mono text-[var(--color-text)]">{state.meta_access_token_preview}</span>
+
+          {/* OAuth success / error feedback */}
+          {metaConnected && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#22c55e15] border border-[#22C55E]/20 text-xs text-[#22C55E]">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              Meta account connected successfully!
+            </div>
+          )}
+          {metaError && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-danger-dim)]/20 border border-[var(--color-danger)]/20 text-xs text-[var(--color-danger)]">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              {metaError}
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[var(--color-text-muted)]">
-              {state?.meta_access_token_set ? 'Replace Access Token' : 'Access Token'}
-            </Label>
-            <div className="relative">
-              <Input
-                type={showMetaToken ? 'text' : 'password'}
-                placeholder="EAANx..."
-                value={metaToken}
-                onChange={(e) => setMetaToken(e.target.value)}
-                className="pr-10 font-mono text-xs"
-              />
+          {state?.meta_access_token_set ? (
+            /* ── Connected state ── */
+            <div className="space-y-3">
+              <div className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
+                Token: <span className="font-mono text-[var(--color-text)]">{state.meta_access_token_preview}</span>
+                {state.meta_ad_account_id && (
+                  <span className="ml-3">Account: <span className="font-mono text-[var(--color-text)]">{state.meta_ad_account_id}</span></span>
+                )}
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleTestMeta} disabled={testingMeta}>
+                  {testingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
+                    metaTestResult === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" /> :
+                    metaTestResult === 'fail' ? <XCircle className="w-3.5 h-3.5 text-[#EF4444]" /> :
+                    <Zap className="w-3.5 h-3.5" />}
+                  {testingMeta ? 'Testing...' : metaTestResult === 'ok' ? 'Connected!' : metaTestResult === 'fail' ? 'Failed' : 'Test connection'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                  onClick={handleDisconnectMeta}
+                  disabled={disconnectingMeta}
+                >
+                  {disconnectingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                  Disconnect
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* ── Not connected state ── */
+            <div className="space-y-4">
+              <div className="rounded-xl border border-[#0081FB]/20 bg-[#0081FB]/5 p-5 text-center space-y-4">
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Connect your Meta account via Facebook login to sync your campaigns and ad data.
+                </p>
+                <Button
+                  className="gap-2 gradient-accent border-0 w-full"
+                  onClick={handleConnectMeta}
+                  disabled={connectingMeta}
+                >
+                  {connectingMeta ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  {connectingMeta ? 'Redirecting to Facebook...' : 'Connect with Facebook'}
+                </Button>
+              </div>
+
+              {/* Manual fallback toggle */}
               <button
-                onClick={() => setShowMetaToken(!showMetaToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] underline transition-colors"
+                onClick={() => setShowManualMeta(!showManualMeta)}
               >
-                {showMetaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showManualMeta ? 'Hide manual setup' : 'Or enter token manually (advanced)'}
               </button>
             </div>
-            <p className="text-[10px] text-[var(--color-text-muted)]">System User token from Meta Business Manager (never expires).</p>
-          </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[var(--color-text-muted)]">Ad Account ID</Label>
-              <Input
-                placeholder="act_123456789"
-                value={metaAccountId}
-                onChange={(e) => setMetaAccountId(e.target.value)}
-                className="font-mono text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[var(--color-text-muted)]">Page ID</Label>
-              <Input
-                placeholder="10578..."
-                value={metaPageId}
-                onChange={(e) => setMetaPageId(e.target.value)}
-                className="font-mono text-xs"
-              />
-            </div>
-          </div>
+          {/* Manual token entry — shown when toggled or when user wants to update */}
+          {(showManualMeta || (state?.meta_access_token_set && showManualMeta)) && (
+            <div className="border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+              <p className="text-xs text-[var(--color-text-muted)] font-medium">Manual token setup</p>
 
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="gap-1.5 gradient-accent border-0"
-              onClick={handleSaveMeta}
-              disabled={savingMeta || (!metaToken && !metaAccountId && !metaPageId)}
-            >
-              {savingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : metaSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              {metaSaved ? 'Saved!' : 'Save'}
-            </Button>
-            {state?.meta_access_token_set && (
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleTestMeta} disabled={testingMeta}>
-                {testingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-                  metaTestResult === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" /> :
-                  metaTestResult === 'fail' ? <XCircle className="w-3.5 h-3.5 text-[#EF4444]" /> :
-                  <Zap className="w-3.5 h-3.5" />}
-                {testingMeta ? 'Testing...' : metaTestResult === 'ok' ? 'Connected!' : metaTestResult === 'fail' ? 'Failed' : 'Test'}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[var(--color-text-muted)]">Access Token</Label>
+                <div className="relative">
+                  <Input
+                    type={showMetaToken ? 'text' : 'password'}
+                    placeholder="EAANx..."
+                    value={metaToken}
+                    onChange={(e) => setMetaToken(e.target.value)}
+                    className="pr-10 font-mono text-xs"
+                  />
+                  <button
+                    onClick={() => setShowMetaToken(!showMetaToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                  >
+                    {showMetaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--color-text-muted)]">System User token from Meta Business Manager (never expires).</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-[var(--color-text-muted)]">Ad Account ID</Label>
+                  <Input
+                    placeholder="act_123456789"
+                    value={metaAccountId}
+                    onChange={(e) => setMetaAccountId(e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-[var(--color-text-muted)]">Page ID</Label>
+                  <Input
+                    placeholder="10578..."
+                    value={metaPageId}
+                    onChange={(e) => setMetaPageId(e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <Button
+                size="sm"
+                className="gap-1.5 gradient-accent border-0"
+                onClick={handleSaveMeta}
+                disabled={savingMeta || (!metaToken && !metaAccountId && !metaPageId)}
+              >
+                {savingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : metaSaved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {metaSaved ? 'Saved!' : 'Save'}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -710,6 +805,9 @@ function RealIntegrationsTab() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') ?? 'general';
+
   const [businessName, setBusinessName] = useState('LiftyGo');
   const [workspaceName, setWorkspaceName] = useState('itay-workspace');
   const [saved, setSaved] = useState(false);
@@ -740,7 +838,7 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--color-text-muted)] mt-1">Manage your workspace, integrations, and AI configuration.</p>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="general" className="gap-1.5">
             <Settings2 className="w-3.5 h-3.5" />

@@ -6,6 +6,7 @@ import {
   Trophy, TrendingUp, Hourglass, XCircle, ChevronDown, ChevronUp, Lightbulb,
   AlertTriangle, Settings,
 } from 'lucide-react';
+import { MetaConnectBanner } from '@/components/meta-connect-banner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -219,6 +220,7 @@ export default function WinnersPage() {
   const [ads, setAds] = useState<EnrichedAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [metaNotConfigured, setMetaNotConfigured] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -227,6 +229,10 @@ export default function WinnersPage() {
         const res = await fetch('/api/meta/ads?limit=50');
         if (!res.ok) {
           const body = (await res.json()) as { error?: string };
+          if (res.status === 503) {
+            setMetaNotConfigured(true);
+            return;
+          }
           setError(body.error ?? `HTTP ${res.status}`);
           return;
         }
@@ -250,6 +256,7 @@ export default function WinnersPage() {
   }, []);
 
   if (loading) return <LoadingSkeleton />;
+  if (metaNotConfigured) return <MetaConnectBanner fullScreen />;
   if (error) return <ErrorState message={error} />;
 
   // Summary counts
