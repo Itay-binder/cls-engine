@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Zap,
@@ -14,32 +14,12 @@ import {
   ArrowRight,
   CheckCircle2,
   Lightbulb,
-  RotateCcw,
-  Upload,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
-import {
-  saveCreativeSession,
-  loadCreativeSession,
-  loadCreativeSessionLocal,
-  clearCreativeSession,
-} from '@/lib/creative-map-store';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1345,49 +1325,75 @@ function Step4Matrix({
   setState: React.Dispatch<React.SetStateAction<CreativeMapState>>;
 }) {
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [progressSnap, setProgressSnap] = useState({ total: 0, completed: 0, inProgress: new Set<string>(), errors: new Set<string>(), isRunning: false, startedAt: 0 });
+  const [tick, setTick] = useState(0);
+  const [activeAvatarId, setActiveAvatarId] = useState<string | null>(null);
+  const genRef = useRef<{
+    loadCachedBrief: (key: string) => CreativeBrief | null;
+    cellKey: (a: string, b: string, c: string) => string;
+  } | null>(null);
+
   const selectedAvatars = state.avatars.filter((a) => state.selectedAvatarIds.includes(a.id));
   const selectedAngles = state.angles.filter((a) => state.selectedAngleIds.includes(a.id));
   const totalCombinations = selectedAvatars.length * selectedAngles.length * state.concepts.length;
+  const displayAvatarId = activeAvatarId ?? selectedAvatars[0]?.id ?? null;
 
-  const handleCellClick = async (avatarId: string, angleId: string, concept: string) => {
+  // Start background generation of all cells
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import('@/lib/creative-generator').then(({ startGeneration, subscribeToGeneration, cellKey, loadCachedBrief }) => {
+      genRef.current = { loadCachedBrief, cellKey };
+
+      const cells = selectedAvatars.flatMap((avatar) =>
+        selectedAngles
+          .filter((angle) => angle.avatarId === avatar.id)
+          .flatMap((angle) =>
+            state.concepts.map((concept) => ({
+              key: cellKey(avatar.id, angle.id, concept),
+              avatar,
+              angle,
+              concept,
+              businessProfile: state.businessProfile,
+            }))
+          )
+      );
+
+      unsub = subscribeToGeneration((p) => {
+        setProgressSnap({ ...p, inProgress: new Set(p.inProgress), errors: new Set(p.errors) });
+        setTick((t) => t + 1);
+      });
+
+      startGeneration(cells);
+    });
+    return () => { unsub?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const getCellBrief = (avatarId: string, angleId: string, concept: string): CreativeBrief | null => {
+    if (!genRef.current) return null;
+    return genRef.current.loadCachedBrief(genRef.current.cellKey(avatarId, angleId, concept));
+  };
+
+  const getCellKey = (avatarId: string, angleId: string, concept: string): string => {
+    if (!genRef.current) return `${avatarId}__${angleId}__${concept}`;
+    return genRef.current.cellKey(avatarId, angleId, concept);
+  };
+
+  const handleCellClick = (avatarId: string, angleId: string, concept: string) => {
     if (getCreativeCount() >= FREE_PLAN_LIMIT) {
       setShowUpgrade(true);
       return;
     }
-    const avatar = state.avatars.find((a) => a.id === avatarId)!;
-    const angle = state.angles.find((a) => a.id === angleId)!;
-
+    const brief = getCellBrief(avatarId, angleId, concept);
+    const key = getCellKey(avatarId, angleId, concept);
     setState((prev) => ({
       ...prev,
       activeCell: { avatarId, angleId, concept },
-      generatingCreative: true,
-      currentCreative: null,
+      currentCreative: brief,
+      generatingCreative: brief ? false : progressSnap.inProgress.has(key),
       error: null,
     }));
-
-    try {
-      const res = await fetch('/api/ai/creative', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          avatar,
-          angle,
-          concept,
-          businessProfile: state.businessProfile,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error?: string };
-        setState((prev) => ({ ...prev, generatingCreative: false, error: err.error ?? 'Creative generation failed' }));
-        return;
-      }
-      const brief = await res.json() as CreativeBrief;
-      incrementCreativeCount();
-      setState((prev) => ({ ...prev, generatingCreative: false, currentCreative: brief, error: null }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Network error';
-      setState((prev) => ({ ...prev, generatingCreative: false, error: msg }));
-    }
+    if (brief) incrementCreativeCount();
   };
 
   const handleSaveToLibrary = async (brief: CreativeBrief): Promise<boolean> => {
@@ -1413,119 +1419,208 @@ function Step4Matrix({
     }
   };
 
+  // Progress bar info
+  const { completed, total, isRunning, startedAt } = progressSnap;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const elapsed = startedAt > 0 ? (Date.now() - startedAt) / 1000 : 0;
+  const rate = elapsed > 0 && completed > 0 ? completed / elapsed : 0;
+  const remaining = rate > 0 && total > completed ? Math.ceil((total - completed) / rate) : null;
+  const fmtTime = (s: number) => s < 60 ? `${s}s` : `${Math.ceil(s / 60)}m`;
+
+  const avatarAnglesForDisplay = selectedAngles.filter((a) => a.avatarId === displayAvatarId);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">Creative Matrix</h2>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-[11px] text-[var(--color-text-muted)]">
-              {selectedAvatars.length} Avatars
-            </span>
-            <span className="text-[var(--color-border)]">×</span>
-            <span className="text-[11px] text-[var(--color-text-muted)]">
-              {selectedAngles.length} Angles
-            </span>
-            <span className="text-[var(--color-border)]">×</span>
-            <span className="text-[11px] text-[var(--color-text-muted)]">
-              {state.concepts.length} Concepts
-            </span>
-            <span className="text-[var(--color-border)]">=</span>
-            <span className="text-sm font-bold text-[var(--color-accent-light)]">
-              {totalCombinations} Creative Variations
+      <div className="px-6 py-3 border-b border-[var(--color-border)] shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Creative Matrix</h2>
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+              <span className="text-[var(--color-accent-light)] font-bold">{totalCombinations}</span>
+              <span>combinations</span>
+              <span className="text-[var(--color-border)]">·</span>
+              <span>{selectedAvatars.length} avatars × {selectedAngles.length} angles × {state.concepts.length} concepts</span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="text-xs text-[var(--color-text-muted)]"
+            onClick={() => setState((prev) => ({ ...prev, step: 3 }))}
+          >
+            ← Back
+          </Button>
+        </div>
+
+        {/* Progress bar */}
+        {total > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${pct}%`,
+                  background: isRunning
+                    ? 'linear-gradient(90deg, var(--color-accent), var(--color-secondary))'
+                    : 'var(--color-accent)',
+                }}
+              />
+            </div>
+            <span className="text-[11px] text-[var(--color-text-muted)] shrink-0 min-w-[140px] text-right">
+              {isRunning ? (
+                <>
+                  <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse mr-1" />
+                  {completed}/{total} ready
+                  {remaining && <span className="text-gray-600"> · ~{fmtTime(remaining)} left</span>}
+                </>
+              ) : (
+                <span className="text-green-400">✓ All {total} creatives ready</span>
+              )}
             </span>
           </div>
-        </div>
-        <Button
-          variant="ghost"
-          className="text-xs text-[var(--color-text-muted)]"
-          onClick={() => setState((prev) => ({ ...prev, step: 3 }))}
-        >
-          ← Back to Concepts
-        </Button>
+        )}
       </div>
 
-      {/* Matrix Content */}
+      {/* Avatar Tabs */}
+      <div className="px-6 py-2.5 border-b border-[var(--color-border)] shrink-0 flex items-center gap-2 overflow-x-auto">
+        {selectedAvatars.map((avatar) => {
+          const isActive = avatar.id === displayAvatarId;
+          const avatarAngles = selectedAngles.filter((a) => a.avatarId === avatar.id);
+          const avatarDone = avatarAngles.reduce((sum, angle) =>
+            sum + state.concepts.filter((c) => !!getCellBrief(avatar.id, angle.id, c)).length, 0);
+          const avatarTotal = avatarAngles.length * state.concepts.length;
+          return (
+            <button
+              key={avatar.id}
+              onClick={() => setActiveAvatarId(avatar.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 border',
+                isActive
+                  ? 'border-[var(--color-accent)] bg-[var(--color-accent-dim)] text-[var(--color-accent-light)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-white/20'
+              )}
+            >
+              <span>{avatar.emoji}</span>
+              <span>{avatar.name}</span>
+              {avatarDone > 0 && (
+                <span className={cn('text-[9px] font-bold', avatarDone === avatarTotal ? 'text-green-400' : 'text-[var(--color-accent-light)]')}>
+                  {avatarDone}/{avatarTotal}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Matrix Table */}
       <div className="flex-1 overflow-auto">
-        <Tabs defaultValue={selectedAvatars[0]?.id} className="flex flex-col h-full">
-          {/* Avatar tabs */}
-          <div className="px-6 py-3 border-b border-[var(--color-border)] shrink-0">
-            <TabsList>
-              {selectedAvatars.map((avatar) => (
-                <TabsTrigger key={avatar.id} value={avatar.id} className="text-xs gap-1.5">
-                  <span>{avatar.emoji}</span>
-                  <span>{avatar.name}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-
-          {/* Matrix per avatar */}
-          {selectedAvatars.map((avatar) => {
-            const avatarAngles = selectedAngles.filter((a) => a.avatarId === avatar.id);
-            return (
-              <TabsContent key={avatar.id} value={avatar.id} className="flex-1 overflow-auto m-0">
-                <div className="p-6 overflow-auto">
-                  <div className="min-w-max">
-                    {/* Header row: concept types */}
-                    <div className="flex gap-2 mb-2 pl-[200px]">
-                      {state.concepts.map((concept) => {
-                        const colorClass = CONCEPT_COLORS[concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-                        return (
-                          <div
-                            key={concept}
-                            className={cn('w-[140px] shrink-0 text-center rounded-full px-2 py-1 text-[10px] font-bold border', colorClass)}
-                          >
-                            {concept}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Rows: angles */}
-                    {avatarAngles.map((angle) => (
-                      <div key={angle.id} className="flex gap-2 mb-2 items-start">
-                        {/* Row label */}
-                        <div className="w-[190px] shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2.5 mr-2">
-                          <p className="text-[11px] font-bold text-[var(--color-accent-light)] leading-tight">{angle.name}</p>
-                          <p className="text-[10px] text-[var(--color-text-muted)] line-clamp-1 mt-0.5">{angle.hookLine.substring(0, 45)}...</p>
-                          <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium mt-1', FORMAT_COLORS[angle.format])}>
-                            {angle.format}
-                          </span>
-                        </div>
-
-                        {/* Cells: concepts */}
-                        {state.concepts.map((concept) => {
-                          const colorClass = CONCEPT_COLORS[concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-                          const isActive =
-                            state.activeCell?.avatarId === avatar.id &&
-                            state.activeCell?.angleId === angle.id &&
-                            state.activeCell?.concept === concept;
-                          return (
-                            <button
-                              key={concept}
-                              onClick={() => handleCellClick(avatar.id, angle.id, concept)}
-                              className={cn(
-                                'w-[140px] shrink-0 rounded-lg border text-[10px] font-medium px-2 py-2 text-left transition-all duration-150 flex items-center justify-between gap-1 group',
-                                isActive
-                                  ? cn(colorClass, 'shadow-md scale-[1.02]')
-                                  : 'border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)]/40 hover:text-[var(--color-text-secondary)]'
-                              )}
-                            >
-                              <span className="truncate">{concept}</span>
-                              <ArrowRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                          );
-                        })}
+        <div className="p-5">
+          <div className="overflow-x-auto border border-[var(--color-border)] rounded-xl">
+            <table className="w-full border-collapse" style={{ minWidth: `${200 + state.concepts.length * 175}px` }}>
+              <thead>
+                <tr>
+                  <th className="w-[185px] bg-[#101624] px-4 py-3 text-left text-[10px] font-semibold text-[var(--color-text-muted)] border-b border-[var(--color-border)] border-r border-[var(--color-border)]">
+                    Angle
+                  </th>
+                  {state.concepts.map((concept) => {
+                    const colorClass = CONCEPT_COLORS[concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+                    return (
+                      <th key={concept} className="bg-[#101624] px-3 py-3 text-center border-b border-[var(--color-border)] border-r border-[var(--color-border)] last:border-r-0">
+                        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border', colorClass)}>
+                          {concept}
+                        </span>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {avatarAnglesForDisplay.map((angle, rowIdx) => (
+                  <tr key={angle.id} className={rowIdx % 2 === 0 ? 'bg-[#0D1526]/50' : 'bg-transparent'}>
+                    {/* Row label */}
+                    <td className="px-4 py-3 border-r border-[var(--color-border)] border-b border-[var(--color-border)] align-top bg-[#101624]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn('w-2 h-2 rounded-full shrink-0', FORMAT_COLORS[angle.format].replace('bg-', '').split(' ')[0] ?? 'bg-gray-500')} />
+                        <p className="text-[11px] font-bold text-[var(--color-accent-light)] leading-tight">{angle.name}</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-            );
-          })}
-        </Tabs>
+                      <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2 mb-1.5">{angle.hookLine}</p>
+                      <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium', FORMAT_COLORS[angle.format])}>
+                        {angle.format}
+                      </span>
+                    </td>
+
+                    {/* Cells */}
+                    {state.concepts.map((concept) => {
+                      const key = getCellKey(displayAvatarId!, angle.id, concept);
+                      const brief = getCellBrief(displayAvatarId!, angle.id, concept);
+                      const isGenerating = progressSnap.inProgress.has(key);
+                      const hasError = progressSnap.errors.has(key);
+                      const isActive =
+                        state.activeCell?.avatarId === displayAvatarId &&
+                        state.activeCell?.angleId === angle.id &&
+                        state.activeCell?.concept === concept;
+                      const colorClass = CONCEPT_COLORS[concept] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
+
+                      return (
+                        <td
+                          key={concept}
+                          className={cn(
+                            'px-3 py-2.5 border-r border-[var(--color-border)] border-b border-[var(--color-border)] last:border-r-0 align-top transition-colors',
+                            brief ? 'cursor-pointer hover:bg-[#141d2e]' : '',
+                            isActive ? 'bg-[#141d2e] ring-1 ring-inset ring-[var(--color-accent)]/40' : ''
+                          )}
+                          onClick={() => brief && displayAvatarId && handleCellClick(displayAvatarId, angle.id, concept)}
+                        >
+                          {brief ? (
+                            /* Done */
+                            <>
+                              <div className="flex items-center gap-1 mb-1.5">
+                                <span className={cn('text-[9px] font-bold font-mono opacity-50')}>
+                                  {angle.id?.split('-')[0]?.toUpperCase() ?? 'ANG'}·{concept.substring(0, 3).toUpperCase()}
+                                </span>
+                                {isActive && <span className="text-[9px] text-[var(--color-accent-light)] ml-auto">open ↗</span>}
+                              </div>
+                              <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed line-clamp-3">
+                                {brief.hook}
+                              </p>
+                              <div className="mt-2 pt-1.5 border-t border-white/5">
+                                <span className={cn('text-[9px] font-medium', colorClass.split(' ')[1])}>
+                                  {brief.angleName}
+                                </span>
+                              </div>
+                            </>
+                          ) : isGenerating ? (
+                            /* Generating */
+                            <div className="flex flex-col gap-1.5 py-1">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                                <span className="text-[9px] text-[var(--color-accent-light)]">writing...</span>
+                              </div>
+                              <div className="shimmer h-2.5 w-full rounded" />
+                              <div className="shimmer h-2.5 w-4/5 rounded" />
+                              <div className="shimmer h-2.5 w-3/5 rounded" />
+                            </div>
+                          ) : hasError ? (
+                            /* Error */
+                            <div className="flex flex-col gap-1 py-1">
+                              <span className="text-[9px] text-red-400">✕ Failed</span>
+                            </div>
+                          ) : (
+                            /* Queued */
+                            <div className="flex flex-col gap-1.5 py-1 opacity-30">
+                              <div className="h-2 w-full rounded bg-white/10" />
+                              <div className="h-2 w-3/4 rounded bg-white/10" />
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Creative Drawer */}
