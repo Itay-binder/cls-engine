@@ -595,10 +595,10 @@ function Step1Avatars({
                       key={avatar.id}
                       onClick={() => toggleAvatar(avatar.id)}
                       className={cn(
-                        'relative rounded-xl border bg-[var(--color-card)] p-4 cursor-pointer transition-all duration-200 hover:bg-[var(--color-card-hover)]',
+                        'relative rounded-xl border p-4 cursor-pointer transition-all duration-200',
                         isSelected
-                          ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent)]/10 bg-gradient-to-br from-[var(--color-card)] to-[var(--color-accent-dim)]'
-                          : 'border-[var(--color-border)]'
+                          ? 'border-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/15 bg-gradient-to-br from-[#131a2e] to-[#1a1040]'
+                          : 'border-white/10 bg-[#111827] hover:bg-[#151e2e] hover:border-white/20'
                       )}
                     >
                       {/* Checkbox */}
@@ -607,7 +607,7 @@ function Step1Avatars({
                           'absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200',
                           isSelected
                             ? 'border-[var(--color-accent)] bg-[var(--color-accent)]'
-                            : 'border-[var(--color-border)]'
+                            : 'border-white/20'
                         )}
                       >
                         {isSelected && <Check className="w-3 h-3 text-white" />}
@@ -616,31 +616,31 @@ function Step1Avatars({
                       <div className="flex items-start gap-3 mb-3 pr-6">
                         <span className="text-2xl leading-none">{avatar.emoji}</span>
                         <div>
-                          <p className="text-sm font-semibold text-[var(--color-text)] leading-tight">
+                          <p className="text-sm font-semibold text-white leading-tight">
                             {avatar.name}
                           </p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[10px] text-[var(--color-text-muted)]">{avatar.ageRange}</span>
-                            <span className="text-[var(--color-border)]">·</span>
-                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-[var(--color-border)] text-[var(--color-text-secondary)]">
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] text-gray-500">{avatar.ageRange}</span>
+                            <span className="text-gray-600">·</span>
+                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-white/8 text-gray-300">
                               {avatar.role}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1.5 text-xs">
-                        <div className="flex gap-1.5">
-                          <span className="text-[var(--color-text-muted)] shrink-0 font-medium w-20">Pain</span>
-                          <span className="text-[var(--color-text-secondary)] line-clamp-2">{avatar.painPoint}</span>
+                      <div className="flex flex-col gap-2 text-xs">
+                        <div className="flex gap-2">
+                          <span className="text-gray-500 shrink-0 font-medium w-14">Pain</span>
+                          <span className="text-gray-300 line-clamp-2">{avatar.painPoint}</span>
                         </div>
-                        <div className="flex gap-1.5">
-                          <span className="text-[var(--color-text-muted)] shrink-0 font-medium w-20">Desire</span>
-                          <span className="text-[var(--color-text-secondary)] line-clamp-1">{avatar.coreDesire}</span>
+                        <div className="flex gap-2">
+                          <span className="text-gray-500 shrink-0 font-medium w-14">Desire</span>
+                          <span className="text-gray-300 line-clamp-1">{avatar.coreDesire}</span>
                         </div>
-                        <div className="flex gap-1.5">
-                          <span className="text-[var(--color-text-muted)] shrink-0 font-medium w-20">Trigger</span>
-                          <span className="text-[var(--color-text-secondary)] line-clamp-1">{avatar.buyingTrigger}</span>
+                        <div className="flex gap-2">
+                          <span className="text-gray-500 shrink-0 font-medium w-14">Trigger</span>
+                          <span className="text-gray-300 line-clamp-1">{avatar.buyingTrigger}</span>
                         </div>
                       </div>
                     </div>
@@ -1082,7 +1082,22 @@ function CreativeDrawer({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  if (!state.activeCell || !state.currentCreative) return null;
+  if (!state.activeCell) return null;
+
+  if (state.generatingCreative || !state.currentCreative) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+        <div className="fixed right-0 top-0 h-full w-[520px] bg-[#0D1422] border-l border-white/10 z-50 flex flex-col items-center justify-center gap-5 shadow-2xl">
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" />
+          <div className="text-center">
+            <p className="text-sm font-medium text-white">Generating creative brief...</p>
+            <p className="text-xs text-gray-500 mt-1">Building hook, script & caption</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const brief = state.currentCreative;
   const avatar = state.avatars.find((a) => a.id === state.activeCell!.avatarId);
@@ -1425,10 +1440,10 @@ function Step4Matrix({
       </div>
 
       {/* Creative Drawer */}
-      {state.activeCell && state.currentCreative && (
+      {state.activeCell && (
         <CreativeDrawer
           state={state}
-          onClose={() => setState((prev) => ({ ...prev, activeCell: null, currentCreative: null }))}
+          onClose={() => setState((prev) => ({ ...prev, activeCell: null, currentCreative: null, generatingCreative: false }))}
           onSave={handleSaveToLibrary}
         />
       )}
@@ -1438,8 +1453,31 @@ function Step4Matrix({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const MAP_STORAGE_KEY = 'cls-creative-map-v1';
+
+function loadSavedState(): Partial<CreativeMapState> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(MAP_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return {
+      step: parsed.step ?? 1,
+      avatarCount: parsed.avatarCount ?? 5,
+      avatars: parsed.avatars ?? [],
+      selectedAvatarIds: parsed.selectedAvatarIds ?? [],
+      angleCount: parsed.angleCount ?? 5,
+      angles: parsed.angles ?? [],
+      selectedAngleIds: parsed.selectedAngleIds ?? [],
+      concepts: parsed.concepts ?? ALL_CONCEPTS.slice(0, 6).map((c) => c.name),
+    };
+  } catch {
+    return {};
+  }
+}
+
 export default function CreativeMapPage() {
-  const [state, setState] = useState<CreativeMapState>({
+  const [state, setState] = useState<CreativeMapState>(() => ({
     step: 1,
     avatarCount: 5,
     avatars: [],
@@ -1454,7 +1492,25 @@ export default function CreativeMapPage() {
     generatingCreative: false,
     currentCreative: null,
     error: null,
-  });
+    ...loadSavedState(),
+  }));
+
+  // Save progress to localStorage on state changes
+  useEffect(() => {
+    if (state.avatars.length === 0 && state.angles.length === 0) return;
+    try {
+      localStorage.setItem(MAP_STORAGE_KEY, JSON.stringify({
+        step: state.step,
+        avatarCount: state.avatarCount,
+        avatars: state.avatars,
+        selectedAvatarIds: state.selectedAvatarIds,
+        angleCount: state.angleCount,
+        angles: state.angles,
+        selectedAngleIds: state.selectedAngleIds,
+        concepts: state.concepts,
+      }));
+    } catch { /* ignore storage errors */ }
+  }, [state.step, state.avatars, state.selectedAvatarIds, state.angles, state.selectedAngleIds, state.concepts]);
 
   // Load business profile on mount
   useEffect(() => {

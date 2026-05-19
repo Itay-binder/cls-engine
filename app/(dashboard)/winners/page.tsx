@@ -228,8 +228,9 @@ export default function WinnersPage() {
       try {
         const res = await fetch('/api/meta/ads?limit=50');
         if (!res.ok) {
-          const body = (await res.json()) as { error?: string };
-          if (res.status === 503) {
+          const body = (await res.json()) as { error?: string; code?: number };
+          // 503 = no credentials, 401 = not logged in, code 190 = expired/invalid OAuth token
+          if (res.status === 503 || res.status === 401 || body.code === 190) {
             setMetaNotConfigured(true);
             return;
           }

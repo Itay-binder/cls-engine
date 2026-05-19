@@ -8,7 +8,6 @@ import {
   Zap, RefreshCw, Loader2, ShieldAlert, Save, LogOut,
 } from 'lucide-react';
 import { useMockMode } from '@/lib/mock-mode';
-import { MetaSetupWizard } from '@/components/meta-setup-wizard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -623,8 +622,24 @@ function RealIntegrationsTab() {
               </div>
             </div>
           ) : (
-            /* ── Setup wizard ── */
-            <MetaSetupWizard onComplete={load} />
+            /* ── Connect with Facebook ── */
+            <div className="space-y-3 pt-1">
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Log in with Facebook to connect your Meta Ads account. You&apos;ll be redirected to Facebook and back.
+              </p>
+              <Button
+                className="gap-2 w-full gradient-accent border-0"
+                onClick={() => { window.location.href = '/api/meta/connect'; }}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+                </svg>
+                Continue with Facebook
+              </Button>
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                We request read &amp; management access to sync your campaigns.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
