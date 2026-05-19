@@ -9,7 +9,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://cls-engine.vercel.ap
 // No App Secret required. Token is returned in the URL fragment on the callback page.
 export async function GET() {
   const redirectUri = encodeURIComponent(`${APP_URL}/oauth/meta`);
-  const scope = 'ads_read,ads_management,business_management';
+  const scope = 'ads_read';
 
   const url =
     `https://www.facebook.com/v22.0/dialog/oauth` +
