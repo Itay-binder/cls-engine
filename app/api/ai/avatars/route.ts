@@ -63,47 +63,30 @@ Each object must have exactly these fields:
 }`;
 }
 
-// ─── JSON retry helper ────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function stripJsonMarkdown(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) return match[1].trim();
+  return text.trim();
+}
 
 async function callWithJsonRetry(
   client: Anthropic,
   prompt: string,
-  retryHint: string
 ): Promise<string> {
-  const firstAttempt = await client.messages.create({
+  const attempt = await client.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const firstText = firstAttempt.content
+  const raw = attempt.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('');
 
-  try {
-    JSON.parse(firstText);
-    return firstText;
-  } catch {
-    // Retry with explicit JSON instruction
-    const retryAttempt = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 4096,
-      messages: [
-        { role: 'user', content: prompt },
-        { role: 'assistant', content: firstText },
-        {
-          role: 'user',
-          content: `Your response was not valid JSON. ${retryHint} Return ONLY the raw JSON array, nothing else — no explanation, no markdown, no code fences.`,
-        },
-      ],
-    });
-
-    return retryAttempt.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-  }
+  return stripJsonMarkdown(raw);
 }
 
 // ─── POST /api/ai/avatars ─────────────────────────────────────────────────────
@@ -134,11 +117,7 @@ export async function POST(request: Request) {
 
   let rawText: string;
   try {
-    rawText = await callWithJsonRetry(
-      client,
-      buildAvatarPrompt(businessProfile, safeCount),
-      'Fix the JSON and return a valid array.'
-    );
+    rawText = await callWithJsonRetry(client, buildAvatarPrompt(businessProfile, safeCount));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: `Anthropic API error: ${message}` }, { status: 502 });
