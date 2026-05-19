@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const META_APP_ID = '2188933491882801';
+const META_APP_ID = '1086098950156180';
 
 interface LongLivedTokenResponse {
   access_token?: string;

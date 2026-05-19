@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // App ID is public — no secret needed for implicit flow
-const META_APP_ID = '2188933491882801';
+const META_APP_ID = '1086098950156180';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://cls-engine.vercel.app';
 
 // GET /api/meta/connect
