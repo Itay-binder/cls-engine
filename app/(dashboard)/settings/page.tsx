@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Settings2, Link2, CreditCard, Bot,
@@ -804,7 +804,7 @@ function RealIntegrationsTab() {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function SettingsPage() {
+function SettingsPageContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get('tab') ?? 'general';
 
@@ -1007,5 +1007,13 @@ export default function SettingsPage() {
 
       </Tabs>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--color-background)] p-6"><div className="shimmer h-32 rounded-xl max-w-xl" /></div>}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
