@@ -30,36 +30,41 @@ const AVATAR_EMOJIS = ['👔', '💼', '🎯', '🏆', '📊', '💡', '🔥', '
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
 function buildAvatarPrompt(profile: BusinessProfile, count: number): string {
-  return `You are a market research expert building creative testing hypotheses for performance marketers.
+  return `You are a direct-response marketing strategist who has built and optimized over 500 paid social campaigns. You understand buyer psychology at a deep level — not demographics, but psychographics, emotional states, and behavioral triggers.
 
-Your job is NOT to define a target audience — your job is to generate distinct avatar HYPOTHESES: real segments who MIGHT respond to this offer. Each hypothesis is a bet to be tested, not a confirmed buyer.
+CONTEXT:
+- Business: ${profile.product_description ?? 'Not specified'}
+- Offer: ${profile.current_offer ?? 'Not specified'}
+- Market notes: ${profile.market_notes ?? 'None'}
 
-Business context:
-- Product / Service: ${profile.product_description ?? 'Not specified'}
-- Current offer: ${profile.current_offer ?? 'Not specified'}
-- Price point: ${profile.price_range ?? 'Not specified'}
-- Additional market notes: ${profile.market_notes ?? 'None'}
+YOUR JOB:
+Generate ${count} DISTINCT market segment hypotheses — not "target audiences" but specific bets about who might respond to this offer. Each is a testable hypothesis, not a confirmed buyer.
 
-Generate ${count} distinct avatar hypotheses. Rules:
-- Each avatar must be a genuinely different market segment — different situation, different mindset, different trigger
-- Avoid marketing-speak clichés like "entrepreneurs aged 25-45 who want to grow their business"
-- Each avatar should feel like a real, specific person you could picture — with a specific job, specific frustration, specific desire
-- Make them diverse in age range, role, and buying psychology
-- The name format: "The [Specific Descriptor]" (e.g., "The Burned-Out Agency Owner", "The Scaling Ecom Founder", "The DIY Coach Who Hit a Ceiling")
-- Pain points should describe what they're experiencing RIGHT NOW — not in general, but this week
-- Core desire should be what they actually want deep down, not what they'd say in a survey
-- Buying trigger should be the specific moment or event that would make them stop scrolling and click
+RULES FOR EACH AVATAR:
+1. SPECIFICITY — Not "business owner who wants to grow" but "the agency owner who tripled clients but profit stayed flat and now doesn't know which client to fire"
+2. EMOTIONAL STATE — What is this person feeling THIS WEEK? Frustrated? Embarrassed? Urgently searching? Name the specific emotional state.
+3. BUYING PSYCHOLOGY — Are they pain-motivated (running away from something) or gain-motivated (running toward something)? This affects everything.
+4. TRIGGER MOMENT — What specific event in their life would make them stop scrolling and actually click? Be precise: "just got rejected from a bank loan" not "needs money"
+5. INTERNAL NARRATIVE — What story are they telling themselves about their situation? This is the conversation already happening in their head that your ad needs to enter.
 
-Return ONLY a valid JSON array with exactly ${count} objects. No explanation, no markdown, no code blocks. Just the raw JSON array.
+NAME FORMAT: "The [Vivid Descriptor]" — make it immediately evocative. Someone reading it should instantly picture a real person.
 
-Each object must have exactly these fields:
+DIVERSITY REQUIREMENTS:
+- Vary the buying psychology: mix pain-avoiders and gain-seekers
+- Vary the urgency level: some are in crisis mode, some are in planning mode
+- Vary the sophistication: some have tried many solutions, some are first-timers
+- Vary age ranges meaningfully (not just 25-55 for everyone)
+
+Return ONLY a raw JSON array with exactly ${count} objects. No markdown, no explanation, no code fences.
+
+Schema:
 {
-  "name": "string",
-  "ageRange": "string (e.g. '32-45')",
-  "role": "string (specific job/situation)",
-  "painPoint": "string (the specific problem they're experiencing RIGHT NOW)",
-  "coreDesire": "string (what they ACTUALLY want, not what they say they want)",
-  "buyingTrigger": "string (what would make them stop scrolling and click)"
+  "name": "The [Vivid Descriptor]",
+  "ageRange": "XX-XX",
+  "role": "specific job title or life situation",
+  "painPoint": "what they are experiencing RIGHT NOW this week — specific and emotional",
+  "coreDesire": "what they ACTUALLY want deep down (not the surface-level answer)",
+  "buyingTrigger": "the specific moment or event that makes them stop scrolling and take action"
 }`;
 }
 
@@ -76,7 +81,7 @@ async function callWithJsonRetry(
   prompt: string,
 ): Promise<string> {
   const attempt = await client.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   });

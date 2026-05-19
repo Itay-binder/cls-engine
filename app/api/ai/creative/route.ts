@@ -50,52 +50,91 @@ function buildCreativePrompt(
   concept: string,
   profile: BusinessProfile
 ): string {
-  return `You are an elite performance creative director with 10+ years of paid social experience.
-You write ads that stop the scroll and convert. You think like a direct response copywriter and a filmmaker at once.
+  return `You are a senior direct-response creative director who has run paid social for 8-figure brands. You think like both a copywriter and a film director — you know that the best ads feel like content, not ads. You understand that 95% of people who see this won't buy today, but the right message plants a seed.
 
-Your task: write a complete, production-ready creative brief for ONE specific ad.
+Your job: write a COMPLETE, production-ready creative brief for ONE specific ad. Everything must be specific enough that a freelance creator can execute it without asking a single question.
 
-━━━ AVATAR ━━━
-${avatar.name} — ${avatar.role}, ${avatar.ageRange}
-Pain (RIGHT NOW): ${avatar.painPoint}
-Core desire (what they ACTUALLY want): ${avatar.coreDesire}
-Buying trigger: ${avatar.buyingTrigger}
+━━━ THE HUMAN YOU'RE TALKING TO ━━━
+${avatar.name} | ${avatar.role} | Age ${avatar.ageRange}
+What they're living through RIGHT NOW: ${avatar.painPoint}
+What they actually want (the deep thing): ${avatar.coreDesire}
+The exact moment that makes them take action: ${avatar.buyingTrigger}
 
-━━━ ANGLE ━━━
-Type: ${angle.name}
-Direction: ${angle.hookLine}
+━━━ THE ANGLE & FORMAT ━━━
+Angle: ${angle.name}
+Hook direction: ${angle.hookLine}
 Format: ${angle.format}
 
-━━━ CONCEPT FORMAT ━━━
+━━━ CONCEPT ━━━
 ${concept}
 
-━━━ OFFER ━━━
+━━━ THE OFFER ━━━
 Product: ${profile.product_description ?? 'Not specified'}
 Offer: ${profile.current_offer ?? 'Not specified'}
 Price: ${profile.price_range ?? 'Not specified'}
 Notes: ${profile.market_notes ?? 'None'}
 
-━━━ RULES ━━━
-- Everything must be written for THIS specific avatar — not a generic audience
-- Hook must create an immediate pattern interrupt in the first 1–3 seconds
-- Script follows PASTOR framework: Problem → Amplify → Solution → Testimony → Offer → Response
-- Caption: strategic emoji usage (3 max), ends with a soft CTA, not salesy
-- Image prompt: hyper-detailed for Midjourney/DALL-E — style, lighting, composition, color palette, mood, specific scene elements
-- Video prompt: scene-by-scene with camera directions for AI video generation (Runway/Sora style)
-- Production notes must be specific: camera setup, tone, energy level, what to avoid
-- No generic advice — every line must be specific to this avatar and this offer
+━━━ WRITING STANDARDS ━━━
+
+HOOK — the most critical element:
+- Must stop someone mid-scroll within 1-3 seconds
+- Speaks directly to THIS avatar's specific emotional state — not "are you struggling with X" but the feeling itself
+- For video/UGC: the opening spoken line or the on-screen text overlay
+- For static: the headline text in the image
+- Pattern interrupts that work: unexpected confession, counterintuitive claim, mirror their internal monologue, name a specific frustration they've never heard named before
+
+SCRIPT — use the PASTOR framework:
+[P] Problem: Name the specific pain. Make them feel seen, not diagnosed.
+[A] Amplify: What happens if this doesn't get solved? Make the cost of inaction real.
+[S] Solution: Introduce the product as the mechanism that solves the named problem. Not features — transformation.
+[T] Testimony: Social proof woven in naturally — sounds like a real person, not a testimonial ad.
+[O] Offer: Be specific and create urgency without being pushy. Name the transformation, not the product.
+[R] Response: Soft CTA. The next step should feel like a small, obvious action — not a commitment.
+
+Include time markers: [0-3s], [3-15s], [15-30s], [30-45s], [45-60s]
+For static/carousel: use [Frame 1], [Frame 2], etc. instead of time markers.
+
+CAPTION:
+- Written like a human, not a brand
+- Max 3 emojis, placed strategically (not at sentence starts)
+- First line must work as a standalone hook (Instagram cuts after ~125 chars)
+- End with soft CTA — "link in bio" or "comment X" or "DM us" — never "click buy now"
+
+VISUAL DIRECTION:
+- Specific enough that a creative director can brief a videographer or designer
+- Name: color palette, lighting mood, subject energy, background, props, wardrobe
+- What should be AVOIDED (as important as what to include)
+- If UGC: what kind of creator fits this (age, energy, vibe, not gender/ethnicity)
+
+PRODUCTION NOTES:
+- Camera: angle, movement, distance from subject
+- Tone: energy level (whisper/confessional vs. punchy/fast), pace, cadence
+- What this ad should NOT look like (protect against generic execution)
+- Platform-specific: TikTok vs. Reels vs. Facebook Feed vs. Stories
+
+IMAGE PROMPT (for Midjourney / DALL-E):
+- Start with the main subject description
+- Include: art style, lighting setup, color palette, composition, mood, background details
+- End with technical specs: --ar 9:16 for vertical, --ar 1:1 for square, --ar 16:9 for horizontal
+- Example format: "Photorealistic photo of [subject], [action/pose], [environment], [lighting], [mood], [color palette], shot on Canon R5, f/1.8, cinematic color grade, --ar 9:16 --v 6"
+
+VIDEO PROMPT (for Runway / Sora / Kling):
+- Scene-by-scene breakdown with camera instructions
+- [Scene 1: 0-3s] Subject, action, camera move, mood
+- Include: transitions, text overlays timing, music energy direction
+- End with: overall visual style reference (think "[Film/Director] meets [aesthetic]")
 
 Return ONLY a valid JSON object. No explanation, no markdown, no code fences.
 
 The JSON must have exactly these fields:
 {
-  "hook": "string — opening hook, first 1-3 seconds, attention-grabbing pattern interrupt specific to this avatar",
-  "script": "string — full script following PASTOR framework: Problem → Amplify → Solution → Testimony → Offer → Response. Use \\n\\n to separate sections. Include time markers like [0-5s], [5-20s], etc.",
-  "caption": "string — social caption with max 3 strategic emojis, ends with soft CTA, NOT salesy. Use \\n for line breaks.",
-  "visualDirection": "string — specific visual description: style, lighting, composition, color palette, mood, what's in frame",
-  "productionNotes": "string — how to film/create: camera angles, tone, energy level, what NOT to do, platform-specific notes",
-  "imagePrompt": "string — hyper-detailed Midjourney/DALL-E prompt: style, lighting, composition, color palette, mood, specific elements, technical specs",
-  "videoPrompt": "string — detailed AI video generation prompt: scene-by-scene with camera directions, transitions, pacing, for Runway/Sora"
+  "hook": "string — the actual opening hook, word-for-word ready to use, first 1-3 seconds",
+  "script": "string — full PASTOR script with time markers. Use \\n\\n between sections.",
+  "caption": "string — social caption, max 3 emojis, soft CTA. Use \\n for line breaks.",
+  "visualDirection": "string — specific visual brief: palette, lighting, subject, energy, what to avoid",
+  "productionNotes": "string — camera, tone, pace, platform notes, what this should NOT look like",
+  "imagePrompt": "string — complete Midjourney/DALL-E prompt with technical specs and aspect ratio",
+  "videoPrompt": "string — scene-by-scene Runway/Sora prompt with camera directions and transitions"
 }`;
 }
 
@@ -109,7 +148,7 @@ function stripJsonMarkdown(text: string): string {
 
 async function callWithJsonRetry(client: Anthropic, prompt: string): Promise<string> {
   const attempt = await client.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],
   });

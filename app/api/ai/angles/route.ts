@@ -40,40 +40,58 @@ function buildAnglesPrompt(
   profile: BusinessProfile,
   count: number
 ): string {
-  return `You are an elite performance creative strategist with 10+ years building paid social campaigns.
+  return `You are a senior direct-response creative strategist who has written winning ad angles for 8-figure ecom brands, high-ticket coaches, and B2B SaaS companies. You understand that an angle is not a headline — it's a completely different PSYCHOLOGICAL ENTRY POINT into the same audience's mind.
 
-Your job: generate ${count} distinct marketing ANGLES for this specific avatar and offer.
-An angle is a different way to ENTER the conversation in this person's mind — same audience, completely different psychological entry point.
+━━━ WHO YOU'RE WRITING FOR ━━━
+${avatar.name} — ${avatar.role}, age ${avatar.ageRange}
+Their reality RIGHT NOW: ${avatar.painPoint}
+What they actually want (the real thing, not the surface answer): ${avatar.coreDesire}
+The moment that makes them stop and click: ${avatar.buyingTrigger}
 
-AVATAR:
-- Name: ${avatar.name}
-- Who they are: ${avatar.role}, ${avatar.ageRange}
-- Their pain RIGHT NOW: ${avatar.painPoint}
-- What they actually want: ${avatar.coreDesire}
-- What makes them click: ${avatar.buyingTrigger}
+━━━ THE OFFER ━━━
+Product: ${profile.product_description ?? 'Not specified'}
+Offer: ${profile.current_offer ?? 'Not specified'}
+Price: ${profile.price_range ?? 'Not specified'}
+Market notes: ${profile.market_notes ?? 'None'}
 
-OFFER:
-- Product: ${profile.product_description ?? 'Not specified'}
-- Current offer: ${profile.current_offer ?? 'Not specified'}
-- Price: ${profile.price_range ?? 'Not specified'}
-- Notes: ${profile.market_notes ?? 'None'}
+━━━ YOUR MISSION ━━━
+Generate ${count} ANGLES that are psychologically distinct — each entering the conversation from a completely different place in this person's emotional world.
 
-Angle types to VARY across your ${count} angles (use different ones, don't repeat):
-Pain Amplification | Dream Outcome | Social Proof | Authority/Credibility | Curiosity Gap | Fear of Missing Out | Before/After | Comparison | Shock/Pattern Interrupt | Educational | Identity-Based | Contrarian
+ANGLE FRAMEWORKS TO DRAW FROM (pick ${count} that fit this avatar's psychology):
+1. PAIN AMPLIFICATION — Make the current pain undeniable. "You already know this isn't working."
+2. DREAM OUTCOME — Paint the life they actually want. Sensory, specific, emotionally resonant.
+3. SOCIAL PROOF — "People exactly like you are doing X." Mirror identity, not just results.
+4. AUTHORITY REFRAME — Challenge a belief they hold with a credible counter-claim.
+5. CURIOSITY GAP — Create an irresistible information gap. They must know what's on the other side.
+6. IDENTITY SHIFT — Not "here's a product" but "here's who you become." Speaks to self-image.
+7. BEFORE/AFTER CONTRAST — The transformation story in 5 seconds. Visceral and visual.
+8. FEAR OF STAYING SAME — Not FOMO of missing out, but the cost of doing nothing. Specific.
+9. PATTERN INTERRUPT — Say something so unexpected it breaks their scroll-trance immediately.
+10. ENEMY FRAMING — Name what's REALLY causing the problem (not the surface symptom).
+11. CONTRARIAN — Take the opposite position from what the market expects. Earn attention by disagreeing.
+12. EDUCATIONAL HOOK — Teach something genuinely useful in the first 5 seconds. Builds trust fast.
 
-Rules:
-- Each angle must feel COMPLETELY different psychologically — not just a reworded version of another
-- The hookLine must be the ACTUAL first line of the ad — first 5 seconds, punchy, specific, not generic
-- The hookLine must speak directly to THIS avatar's specific situation, not a generic buyer
-- Format should be assigned strategically (e.g., Social Proof → UGC, Educational → Video, Comparison → Carousel)
-- Vary the formats across the ${count} angles
+━━━ HOOK LINE RULES ━━━
+- This must be the ACTUAL first spoken or written line of the ad — word-for-word ready to use
+- First 5 seconds max. If it takes longer to say, cut it.
+- Must name something specific to THIS avatar's situation — not "are you struggling with X?" but the exact texture of their struggle
+- Must create an immediate emotional reaction: recognition, curiosity, fear, or hope
+- NEVER start with "Are you...", "Do you want...", "I'm going to show you...", or the brand name
+- Each hook must feel like it was written by a different human with a different creative personality
+
+━━━ FORMAT ASSIGNMENT LOGIC ━━━
+Assign formats strategically:
+- UGC → Social Proof, Identity Shift, Before/After (feels authentic, peer-to-peer)
+- Video → Pain Amplification, Enemy Framing, Educational (needs visual storytelling)
+- Static → Curiosity Gap, Pattern Interrupt, Contrarian (high-impact single visual)
+- Carousel → Before/After Contrast, Educational, Comparison (needs multiple frames)
 
 Return ONLY a valid JSON array with exactly ${count} objects. No explanation, no markdown, no code fences.
 
 Each object must have exactly these fields:
 {
-  "name": "string (the angle type name, e.g. 'Pain Amplification')",
-  "hookLine": "string (the ACTUAL first line of the ad — specific and punchy, written for this avatar)",
+  "name": "string (the angle framework name — specific, not generic)",
+  "hookLine": "string (the ACTUAL first line of the ad — word-for-word, written for this exact avatar)",
   "format": "UGC" | "Static" | "Video" | "Carousel"
 }`;
 }
@@ -88,7 +106,7 @@ function stripJsonMarkdown(text: string): string {
 
 async function callWithJsonRetry(client: Anthropic, prompt: string): Promise<string> {
   const attempt = await client.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }],
   });
