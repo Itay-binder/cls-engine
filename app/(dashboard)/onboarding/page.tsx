@@ -280,8 +280,8 @@ function SuccessState({ answers }: { answers: string[] }) {
         </CardContent>
       </Card>
 
-      <Button size="lg" className="gap-2" onClick={() => router.push('/dashboard')}>
-        Go to Mission Control
+      <Button size="lg" className="gap-2" onClick={() => router.push('/map')}>
+        Build Creative Map
         <ArrowRight className="h-4 w-4" />
       </Button>
     </div>

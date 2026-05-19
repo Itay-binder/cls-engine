@@ -76,16 +76,10 @@ interface CreativeBrief {
 
 interface BusinessProfile {
   id: string;
-  business_name?: string | null;
+  business_name: string | null;
   product_description: string | null;
   current_offer: string | null;
-  price_range: string | null;
   market_notes: string | null;
-  // legacy fields kept for backward compat with old Supabase select
-  product_name?: string | null;
-  niche?: string | null;
-  target_market?: string | null;
-  offer_type?: string | null;
 }
 
 interface CreativeMapState {
@@ -387,7 +381,29 @@ function Step1Avatars({
   setState: React.Dispatch<React.SetStateAction<CreativeMapState>>;
 }) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const selectedCount = state.selectedAvatarIds.length;
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from('business_profiles')
+        .select('id, business_name, product_description, current_offer, market_notes')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setBusinesses(data as BusinessProfile[]);
+            if (!state.businessProfile) {
+              setState((prev) => ({ ...prev, businessProfile: data[0] as BusinessProfile }));
+            }
+          }
+        });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -462,29 +478,32 @@ function Step1Avatars({
             </div>
           </div>
 
-          {/* Business Context Pill */}
-          {state.businessProfile && (
+          {/* Business Selector */}
+          {businesses.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">
-                Business Context
+                Business
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {state.businessProfile.product_name && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium bg-[var(--color-accent-dim)] text-[var(--color-accent-light)] border border-[var(--color-accent)]/20">
-                    {state.businessProfile.product_name}
-                  </span>
-                )}
-                {state.businessProfile.niche && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium bg-[var(--color-border)] text-[var(--color-text-secondary)]">
-                    {state.businessProfile.niche}
-                  </span>
-                )}
-                {state.businessProfile.offer_type && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium bg-[var(--color-border)] text-[var(--color-text-secondary)]">
-                    {state.businessProfile.offer_type}
-                  </span>
-                )}
-              </div>
+              <select
+                value={state.businessProfile?.id ?? ''}
+                onChange={(e) => {
+                  const biz = businesses.find((b) => b.id === e.target.value);
+                  if (biz) setState((prev) => ({ ...prev, businessProfile: biz, avatars: [], selectedAvatarIds: [], error: null }));
+                }}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] text-xs px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+              >
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.business_name ?? 'Unnamed Business'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {businesses.length === 0 && (
+            <div className="text-[11px] text-[var(--color-text-muted)] bg-[var(--color-border)]/30 rounded-lg p-3">
+              No business profile found.{' '}
+              <a href="/onboarding" className="text-[var(--color-accent-light)] underline">Set one up →</a>
             </div>
           )}
 
@@ -518,6 +537,13 @@ function Step1Avatars({
 
       {/* Right Panel */}
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Error Banner */}
+        {state.error && !isGenerating && state.avatars.length === 0 && (
+          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
+            <span className="mt-0.5 shrink-0">⚠</span>
+            <span>{state.error}</span>
+          </div>
+        )}
         {/* Empty State */}
         {!isGenerating && state.avatars.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
@@ -526,10 +552,12 @@ function Step1Avatars({
             </div>
             <div className="text-center">
               <h3 className="text-base font-semibold text-[var(--color-text)]">
-                Click Generate to create avatar hypotheses
+                {state.businessProfile ? `Generating for ${state.businessProfile.business_name ?? 'your business'}` : 'Click Generate to create avatar hypotheses'}
               </h3>
               <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-sm">
-                We'll build realistic buyer profiles based on your business context.
+                {state.businessProfile
+                  ? 'AI will build buyer hypotheses based on your business profile.'
+                  : 'Select a business from the sidebar, then click Generate.'}
               </p>
             </div>
           </div>
@@ -1437,8 +1465,9 @@ export default function CreativeMapPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('id, product_name, niche, target_market, offer_type')
+        .select('id, business_name, product_description, current_offer, market_notes')
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 

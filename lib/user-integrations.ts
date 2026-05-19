@@ -36,9 +36,9 @@ export async function getUserIntegrations(): Promise<{
     userId: user.id,
     integrations: {
       anthropic_api_key: data?.anthropic_api_key || process.env.ANTHROPIC_API_KEY || null,
-      meta_access_token: data?.meta_access_token || process.env.META_ACCESS_TOKEN || null,
-      meta_ad_account_id: data?.meta_ad_account_id || process.env.META_AD_ACCOUNT_ID || null,
-      meta_page_id: data?.meta_page_id || process.env.META_PAGE_ID || null,
+      meta_access_token: data?.meta_access_token || null,
+      meta_ad_account_id: data?.meta_ad_account_id || null,
+      meta_page_id: data?.meta_page_id || null,
     },
   };
 }
