@@ -18,7 +18,10 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -99,6 +102,12 @@ export default function DashboardLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -144,6 +153,27 @@ export default function DashboardLayout({
               </span>
             )}
           </div>
+
+          {/* Theme toggle */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className={cn(
+                "flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2 w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-card-hover)] transition-colors",
+                collapsed && "justify-center px-2"
+              )}
+              title={theme === "dark" ? "עבור למצב בהיר" : "עבור למצב כהה"}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <Moon className="h-3.5 w-3.5 shrink-0" />
+              )}
+              {!collapsed && (
+                <span>{theme === "dark" ? "עיצוב בהיר" : "עיצוב כהה"}</span>
+              )}
+            </button>
+          )}
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
