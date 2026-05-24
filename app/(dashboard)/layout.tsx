@@ -162,7 +162,7 @@ export default function DashboardLayout({
                 "flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2 w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-card-hover)] transition-colors",
                 collapsed && "justify-center px-2"
               )}
-              title={theme === "dark" ? "עבור למצב בהיר" : "עבור למצב כהה"}
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {theme === "dark" ? (
                 <Sun className="h-3.5 w-3.5 shrink-0" />
@@ -170,7 +170,7 @@ export default function DashboardLayout({
                 <Moon className="h-3.5 w-3.5 shrink-0" />
               )}
               {!collapsed && (
-                <span>{theme === "dark" ? "עיצוב בהיר" : "עיצוב כהה"}</span>
+                <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
               )}
             </button>
           )}

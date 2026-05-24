@@ -21,6 +21,7 @@ import {
   Building2,
   ArrowLeft,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -296,6 +297,7 @@ function BusinessSelector({
   tier,
   onActivate,
   onNewBusiness,
+  onDelete,
   loading,
 }: {
   businesses: BusinessProfile[];
@@ -303,6 +305,7 @@ function BusinessSelector({
   tier: SubscriptionTier;
   onActivate: (id: string) => void;
   onNewBusiness: () => void;
+  onDelete: (id: string) => void;
   loading: boolean;
 }) {
   const limit = TIER_LIMITS[tier];
@@ -390,6 +393,13 @@ function BusinessSelector({
                   )}
                 </div>
                 <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">Created {createdDate}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(b.id); }}
+                  className="ml-1 p-1 rounded-md text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                  title="Delete business"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </button>
             );
           })
@@ -720,6 +730,22 @@ export default function OnboardingPage() {
     setShowNewForm(false);
   };
 
+  const handleDeleteBusiness = async (id: string) => {
+    if (!window.confirm('Delete this business? This cannot be undone.')) return;
+    const res = await fetch(`/api/business/${id}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Failed to delete business.'); return; }
+    setBusinesses((prev) => prev.filter((b) => b.id !== id));
+    if (activeId === id) {
+      const remaining = businesses.filter((b) => b.id !== id);
+      const next = remaining[0]?.id ?? null;
+      setActiveId(next);
+      if (next) {
+        const supabase = createClient();
+        await supabase.auth.updateUser({ data: { active_business_id: next } });
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-6 lg:p-10">
       <div className="mx-auto max-w-6xl">
@@ -734,6 +760,7 @@ export default function OnboardingPage() {
               tier={tier}
               onActivate={handleActivate}
               onNewBusiness={handleNewBusiness}
+              onDelete={handleDeleteBusiness}
               loading={loadingBusinesses}
             />
 
