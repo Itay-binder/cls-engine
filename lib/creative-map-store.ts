@@ -45,13 +45,13 @@ export interface CreativeSession {
 
 // ─── localStorage key ─────────────────────────────────────────────────────────
 
-const LS_KEY = 'cls_map_session';
+const LS_KEY = (workspaceId: string) => `cls_map_session:${workspaceId}`;
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
-function readLocalSession(): CreativeSession | null {
+function readLocalSession(workspaceId: string): CreativeSession | null {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(LS_KEY(workspaceId));
     if (!raw) return null;
     return JSON.parse(raw) as CreativeSession;
   } catch {
@@ -61,17 +61,19 @@ function readLocalSession(): CreativeSession | null {
 
 function writeLocalSession(data: Partial<CreativeSession> & { workspace_id: string }): void {
   try {
-    const existing = readLocalSession() ?? ({} as Partial<CreativeSession>);
+    const existing = readLocalSession(data.workspace_id) ?? ({} as Partial<CreativeSession>);
     const merged = { ...existing, ...data };
-    localStorage.setItem(LS_KEY, JSON.stringify(merged));
+    localStorage.setItem(LS_KEY(data.workspace_id), JSON.stringify(merged));
+    // Clean up old non-scoped key if it exists
+    localStorage.removeItem('cls_map_session');
   } catch {
     // localStorage may be unavailable (SSR, private mode quota)
   }
 }
 
-function removeLocalSession(): void {
+function removeLocalSession(workspaceId: string): void {
   try {
-    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_KEY(workspaceId));
   } catch {
     // ignore
   }
@@ -124,8 +126,8 @@ export async function saveCreativeSession(
  * Returns localStorage data immediately (or null), then caller can await
  * Supabase for the authoritative version.
  */
-export function loadCreativeSessionLocal(): CreativeSession | null {
-  return readLocalSession();
+export function loadCreativeSessionLocal(workspaceId: string): CreativeSession | null {
+  return readLocalSession(workspaceId);
 }
 
 /**
@@ -173,7 +175,7 @@ export async function loadCreativeSession(workspaceId: string): Promise<Creative
  * Clear all Creative Map state — both localStorage and Supabase row.
  */
 export async function clearCreativeSession(workspaceId: string): Promise<void> {
-  removeLocalSession();
+  removeLocalSession(workspaceId);
 
   try {
     const supabase = createClient();

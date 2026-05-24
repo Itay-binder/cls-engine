@@ -1228,23 +1228,23 @@ function Step3Concepts({
 
 // ─── Free Plan Limit ─────────────────────────────────────────────────────────
 
-const CREATIVE_COUNT_KEY = 'cls-creative-count-v1';
+const CREATIVE_COUNT_KEY = (uid: string) => `cls-creative-count-v1:${uid}`;
 const FREE_PLAN_LIMIT = 30;
 
-function getCreativeCount(): number {
+function getCreativeCount(userId: string): number {
   if (typeof window === 'undefined') return 0;
-  try { return parseInt(localStorage.getItem(CREATIVE_COUNT_KEY) ?? '0', 10) || 0; } catch { return 0; }
+  try { return parseInt(localStorage.getItem(CREATIVE_COUNT_KEY(userId)) ?? '0', 10) || 0; } catch { return 0; }
 }
 
-function incrementCreativeCount(): number {
-  const next = getCreativeCount() + 1;
-  try { localStorage.setItem(CREATIVE_COUNT_KEY, String(next)); } catch { /* ignore */ }
+function incrementCreativeCount(userId: string): number {
+  const next = getCreativeCount(userId) + 1;
+  try { localStorage.setItem(CREATIVE_COUNT_KEY(userId), String(next)); } catch { /* ignore */ }
   return next;
 }
 
 // ─── Upgrade Modal ────────────────────────────────────────────────────────────
 
-function UpgradeModal({ onClose }: { onClose: () => void }) {
+function UpgradeModal({ onClose, userId }: { onClose: () => void; userId: string }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={onClose} />
@@ -1273,7 +1273,7 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <p className="text-[11px] text-gray-600 mt-4">
-            {getCreativeCount()} / {FREE_PLAN_LIMIT} briefs used on free plan
+            {getCreativeCount(userId)} / {FREE_PLAN_LIMIT} briefs used on free plan
           </p>
         </div>
       </div>
@@ -1519,9 +1519,11 @@ function CreativeDrawer({
 function Step4Matrix({
   state,
   setState,
+  userId,
 }: {
   state: CreativeMapState;
   setState: React.Dispatch<React.SetStateAction<CreativeMapState>>;
+  userId: string;
 }) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [progressSnap, setProgressSnap] = useState({ total: 0, completed: 0, inProgress: new Set<string>(), errors: new Set<string>(), isRunning: false, startedAt: 0 });
@@ -1580,7 +1582,7 @@ function Step4Matrix({
   };
 
   const handleCellClick = (avatarId: string, angleId: string, concept: string) => {
-    if (getCreativeCount() >= FREE_PLAN_LIMIT) {
+    if (getCreativeCount(userId) >= FREE_PLAN_LIMIT) {
       setShowUpgrade(true);
       return;
     }
@@ -1593,7 +1595,7 @@ function Step4Matrix({
       generatingCreative: brief ? false : progressSnap.inProgress.has(key),
       error: null,
     }));
-    if (brief) incrementCreativeCount();
+    if (brief) incrementCreativeCount(userId);
   };
 
   const handleRetryCell = async (avatarId: string, angle: Angle, concept: string) => {
@@ -1847,19 +1849,19 @@ function Step4Matrix({
       )}
 
       {/* Upgrade Modal */}
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} userId={userId} />}
     </div>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const MAP_STORAGE_KEY = 'cls-creative-map-v1';
+const MAP_STORAGE_KEY = (uid: string) => `cls-creative-map-v1:${uid}`;
 
-function loadSavedState(): Partial<CreativeMapState> {
+function loadSavedState(userId: string): Partial<CreativeMapState> {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(MAP_STORAGE_KEY);
+    const raw = localStorage.getItem(MAP_STORAGE_KEY(userId));
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return {
@@ -1877,30 +1879,53 @@ function loadSavedState(): Partial<CreativeMapState> {
   }
 }
 
-export default function CreativeMapPage() {
-  const [state, setState] = useState<CreativeMapState>(() => ({
-    step: 1,
-    avatarCount: 5,
-    avatars: [],
-    selectedAvatarIds: [],
-    angleCount: 5,
-    angles: [],
-    selectedAngleIds: [],
-    concepts: ALL_CONCEPTS.slice(0, 6).map((c) => c.name),
-    businessProfile: null,
-    workspaceId: null,
-    activeCell: null,
-    generatingCreative: false,
-    currentCreative: null,
-    error: null,
-    ...loadSavedState(),
-  }));
+const DEFAULT_MAP_STATE: CreativeMapState = {
+  step: 1,
+  avatarCount: 5,
+  avatars: [],
+  selectedAvatarIds: [],
+  angleCount: 5,
+  angles: [],
+  selectedAngleIds: [],
+  concepts: ALL_CONCEPTS.slice(0, 6).map((c) => c.name),
+  businessProfile: null,
+  workspaceId: null,
+  activeCell: null,
+  generatingCreative: false,
+  currentCreative: null,
+  error: null,
+};
 
-  // Save progress to localStorage on state changes
+export default function CreativeMapPage() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [state, setState] = useState<CreativeMapState>(DEFAULT_MAP_STATE);
+
+  // Step 1: get userId — never load localStorage before knowing who the user is
   useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null);
+    });
+  }, []);
+
+  // Step 2: once userId is known, load their scoped data and clean up old generic keys
+  useEffect(() => {
+    if (!userId) return;
+    // Remove old non-user-scoped key left from previous versions
+    try { localStorage.removeItem('cls-creative-map-v1'); } catch { /* ignore */ }
+    const saved = loadSavedState(userId);
+    if (Object.keys(saved).length > 0) {
+      setState((prev) => ({ ...DEFAULT_MAP_STATE, ...saved }));
+    } else {
+      setState(DEFAULT_MAP_STATE);
+    }
+  }, [userId]);
+
+  // Save progress to user-scoped localStorage key
+  useEffect(() => {
+    if (!userId) return;
     if (state.avatars.length === 0 && state.angles.length === 0) return;
     try {
-      localStorage.setItem(MAP_STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(MAP_STORAGE_KEY(userId), JSON.stringify({
         step: state.step,
         avatarCount: state.avatarCount,
         avatars: state.avatars,
@@ -1911,30 +1936,23 @@ export default function CreativeMapPage() {
         concepts: state.concepts,
       }));
     } catch { /* ignore storage errors */ }
-  }, [state.step, state.avatars, state.selectedAvatarIds, state.angles, state.selectedAngleIds, state.concepts]);
+  }, [userId, state.step, state.avatars, state.selectedAvatarIds, state.angles, state.selectedAngleIds, state.concepts]);
 
-  // Load business profile on mount
+  // Load business profile once userId is known
   useEffect(() => {
-    const loadProfile = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('business_profiles')
-        .select('id, business_name, product_description, current_offer, market_notes')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        setState((prev) => ({ ...prev, businessProfile: data as BusinessProfile }));
-      }
-    };
-
-    loadProfile();
-  }, []);
+    if (!userId) return;
+    const supabase = createClient();
+    supabase
+      .from('business_profiles')
+      .select('id, business_name, product_description, current_offer, market_notes')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setState((prev) => ({ ...prev, businessProfile: data as BusinessProfile }));
+      });
+  }, [userId]);
 
   return (
     <div
@@ -1947,7 +1965,7 @@ export default function CreativeMapPage() {
         {state.step === 1 && <Step1Avatars state={state} setState={setState} />}
         {state.step === 2 && <Step2Angles state={state} setState={setState} />}
         {state.step === 3 && <Step3Concepts state={state} setState={setState} />}
-        {state.step === 4 && <Step4Matrix state={state} setState={setState} />}
+        {state.step === 4 && <Step4Matrix state={state} setState={setState} userId={userId ?? ''} />}
       </div>
     </div>
   );
