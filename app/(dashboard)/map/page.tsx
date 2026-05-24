@@ -384,6 +384,7 @@ function Step1Avatars({
   const [isGenerating, setIsGenerating] = useState(false);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [subAvatarMap, setSubAvatarMap] = useState<Record<string, SubAvatar[]>>({});
+  const [subAvatarErrors, setSubAvatarErrors] = useState<Record<string, string>>({});
   const [generatingSubForId, setGeneratingSubForId] = useState<string | null>(null);
   const [expandedAvatarIds, setExpandedAvatarIds] = useState<Set<string>>(new Set());
   const selectedCount = state.selectedAvatarIds.length;
@@ -438,7 +439,8 @@ function Step1Avatars({
 
   const handleGenerateSubAvatars = async (avatar: Avatar, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (subAvatarMap[avatar.id] || generatingSubForId === avatar.id) {
+    if (generatingSubForId === avatar.id) return;
+    if (subAvatarMap[avatar.id]?.length) {
       setExpandedAvatarIds((prev) => {
         const next = new Set(prev);
         if (next.has(avatar.id)) next.delete(avatar.id);
@@ -448,6 +450,7 @@ function Step1Avatars({
       return;
     }
     setGeneratingSubForId(avatar.id);
+    setSubAvatarErrors((prev) => { const n = { ...prev }; delete n[avatar.id]; return n; });
     setExpandedAvatarIds((prev) => new Set([...prev, avatar.id]));
     try {
       const res = await fetch('/api/ai/sub-avatars', {
@@ -455,9 +458,21 @@ function Step1Avatars({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatar }),
       });
-      if (!res.ok) return;
-      const subs = await res.json() as SubAvatar[];
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = (data as { error?: string }).error ?? `Error ${res.status}`;
+        setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: msg }));
+        return;
+      }
+      const subs = data as SubAvatar[];
+      if (!Array.isArray(subs) || subs.length === 0) {
+        setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: 'No sub-avatars returned' }));
+        return;
+      }
       setSubAvatarMap((prev) => ({ ...prev, [avatar.id]: subs }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error';
+      setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: msg }));
     } finally {
       setGeneratingSubForId(null);
     }
@@ -625,6 +640,7 @@ function Step1Avatars({
                   const subs = subAvatarMap[avatar.id] ?? [];
                   const isGeneratingSub = generatingSubForId === avatar.id;
                   const hasSubs = subs.length > 0;
+                  const subError = subAvatarErrors[avatar.id];
 
                   const awarenessColors: Record<string, string> = {
                     unaware: 'bg-gray-500/15 text-gray-400',
@@ -776,6 +792,12 @@ function Step1Avatars({
                               {[1, 2, 3].map((i) => (
                                 <div key={i} className="h-16 rounded-lg bg-white/4 animate-pulse" />
                               ))}
+                            </div>
+                          )}
+                          {subError && !isGeneratingSub && (
+                            <div className="px-4 py-3 bg-[#0d1117] text-[11px] text-rose-400 flex items-start gap-2">
+                              <span className="shrink-0">⚠</span>
+                              <span>{subError}</span>
                             </div>
                           )}
                           {subs.map((sub, idx) => (
