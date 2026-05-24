@@ -453,12 +453,15 @@ function Step1Avatars({
     setSubAvatarErrors((prev) => { const n = { ...prev }; delete n[avatar.id]; return n; });
     setExpandedAvatarIds((prev) => new Set([...prev, avatar.id]));
     try {
+      console.log('[sub-avatars] fetching for', avatar.id);
       const res = await fetch('/api/ai/sub-avatars', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatar }),
       });
+      console.log('[sub-avatars] status', res.status);
       const data = await res.json();
+      console.log('[sub-avatars] data', data);
       if (!res.ok) {
         const msg = (data as { error?: string }).error ?? `Error ${res.status}`;
         setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: msg }));
@@ -466,12 +469,13 @@ function Step1Avatars({
       }
       const subs = data as SubAvatar[];
       if (!Array.isArray(subs) || subs.length === 0) {
-        setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: 'No sub-avatars returned' }));
+        setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: 'No sub-avatars returned — check console' }));
         return;
       }
       setSubAvatarMap((prev) => ({ ...prev, [avatar.id]: subs }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Network error';
+      console.error('[sub-avatars] error', err);
       setSubAvatarErrors((prev) => ({ ...prev, [avatar.id]: msg }));
     } finally {
       setGeneratingSubForId(null);
