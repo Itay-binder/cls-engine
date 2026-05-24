@@ -1,3 +1,17 @@
+export type AwarenessLevel = 'unaware' | 'problem_aware' | 'solution_aware' | 'brand_aware';
+export type SophisticationLevel = 'new' | 'experienced' | 'sophisticated';
+export type BuyingReadiness = 'browsing' | 'considering' | 'ready';
+
+export interface SubAvatar {
+  id: string;
+  parentAvatarId: string;
+  name: string;
+  stage: string;
+  specificPain: string;
+  buyingReadiness: BuyingReadiness;
+  ownWords: string;
+}
+
 export interface Avatar {
   id: string;
   emoji: string;
@@ -7,6 +21,11 @@ export interface Avatar {
   painPoint: string;
   coreDesire: string;
   buyingTrigger: string;
+  awarenessLevel?: AwarenessLevel;
+  primaryObjection?: string;
+  voiceOfCustomer?: string;
+  sophisticationLevel?: SophisticationLevel;
+  subAvatars?: SubAvatar[];
 }
 
 export interface Angle {

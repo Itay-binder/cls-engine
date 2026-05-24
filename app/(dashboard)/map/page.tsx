@@ -14,6 +14,9 @@ import {
   ArrowRight,
   CheckCircle2,
   Lightbulb,
+  ChevronDown,
+  ChevronUp,
+  SplitSquareVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,20 @@ import { Slider } from '@/components/ui/slider';
 import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+type AwarenessLevel = 'unaware' | 'problem_aware' | 'solution_aware' | 'brand_aware';
+type SophisticationLevel = 'new' | 'experienced' | 'sophisticated';
+type BuyingReadiness = 'browsing' | 'considering' | 'ready';
+
+interface SubAvatar {
+  id: string;
+  parentAvatarId: string;
+  name: string;
+  stage: string;
+  specificPain: string;
+  buyingReadiness: BuyingReadiness;
+  ownWords: string;
+}
 
 interface Avatar {
   id: string;
@@ -32,6 +49,10 @@ interface Avatar {
   painPoint: string;
   coreDesire: string;
   buyingTrigger: string;
+  awarenessLevel?: AwarenessLevel;
+  primaryObjection?: string;
+  voiceOfCustomer?: string;
+  sophisticationLevel?: SophisticationLevel;
 }
 
 interface Angle {
@@ -362,6 +383,9 @@ function Step1Avatars({
 }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
+  const [subAvatarMap, setSubAvatarMap] = useState<Record<string, SubAvatar[]>>({});
+  const [generatingSubForId, setGeneratingSubForId] = useState<string | null>(null);
+  const [expandedAvatarIds, setExpandedAvatarIds] = useState<Set<string>>(new Set());
   const selectedCount = state.selectedAvatarIds.length;
 
   useEffect(() => {
@@ -409,6 +433,33 @@ function Step1Avatars({
       setState((prev) => ({ ...prev, error: msg }));
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateSubAvatars = async (avatar: Avatar, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (subAvatarMap[avatar.id] || generatingSubForId === avatar.id) {
+      setExpandedAvatarIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(avatar.id)) next.delete(avatar.id);
+        else next.add(avatar.id);
+        return next;
+      });
+      return;
+    }
+    setGeneratingSubForId(avatar.id);
+    setExpandedAvatarIds((prev) => new Set([...prev, avatar.id]));
+    try {
+      const res = await fetch('/api/ai/sub-avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar }),
+      });
+      if (!res.ok) return;
+      const subs = await res.json() as SubAvatar[];
+      setSubAvatarMap((prev) => ({ ...prev, [avatar.id]: subs }));
+    } finally {
+      setGeneratingSubForId(null);
     }
   };
 
@@ -570,59 +621,185 @@ function Step1Avatars({
               <div className="grid grid-cols-2 gap-4">
                 {state.avatars.map((avatar) => {
                   const isSelected = state.selectedAvatarIds.includes(avatar.id);
+                  const isExpanded = expandedAvatarIds.has(avatar.id);
+                  const subs = subAvatarMap[avatar.id] ?? [];
+                  const isGeneratingSub = generatingSubForId === avatar.id;
+                  const hasSubs = subs.length > 0;
+
+                  const awarenessColors: Record<string, string> = {
+                    unaware: 'bg-gray-500/15 text-gray-400',
+                    problem_aware: 'bg-amber-500/15 text-amber-400',
+                    solution_aware: 'bg-blue-500/15 text-blue-400',
+                    brand_aware: 'bg-purple-500/15 text-purple-400',
+                  };
+                  const awarenessLabels: Record<string, string> = {
+                    unaware: 'Unaware',
+                    problem_aware: 'Problem Aware',
+                    solution_aware: 'Solution Aware',
+                    brand_aware: 'Brand Aware',
+                  };
+                  const sophColors: Record<string, string> = {
+                    new: 'bg-emerald-500/15 text-emerald-400',
+                    experienced: 'bg-orange-500/15 text-orange-400',
+                    sophisticated: 'bg-rose-500/15 text-rose-400',
+                  };
+                  const readinessColors: Record<string, string> = {
+                    browsing: 'bg-gray-500/15 text-gray-400',
+                    considering: 'bg-blue-500/15 text-blue-400',
+                    ready: 'bg-green-500/15 text-green-400',
+                  };
+
                   return (
-                    <div
-                      key={avatar.id}
-                      onClick={() => toggleAvatar(avatar.id)}
-                      className={cn(
-                        'relative rounded-xl border p-4 cursor-pointer transition-all duration-200',
-                        isSelected
-                          ? 'border-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/15 bg-gradient-to-br from-[#131a2e] to-[#1a1040]'
-                          : 'border-white/10 bg-[#111827] hover:bg-[#151e2e] hover:border-white/20'
-                      )}
-                    >
-                      {/* Checkbox */}
+                    <div key={avatar.id} className="flex flex-col gap-0">
                       <div
+                        onClick={() => toggleAvatar(avatar.id)}
                         className={cn(
-                          'absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200',
+                          'relative rounded-xl border p-4 cursor-pointer transition-all duration-200',
+                          isExpanded ? 'rounded-b-none border-b-0' : '',
                           isSelected
-                            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]'
-                            : 'border-white/20'
+                            ? 'border-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/15 bg-gradient-to-br from-[#131a2e] to-[#1a1040]'
+                            : 'border-white/10 bg-[#111827] hover:bg-[#151e2e] hover:border-white/20'
                         )}
                       >
-                        {isSelected && <Check className="w-3 h-3 text-white" />}
-                      </div>
+                        {/* Checkbox */}
+                        <div
+                          className={cn(
+                            'absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200',
+                            isSelected
+                              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]'
+                              : 'border-white/20'
+                          )}
+                        >
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
 
-                      <div className="flex items-start gap-3 mb-3 pr-6">
-                        <span className="text-2xl leading-none">{avatar.emoji}</span>
-                        <div>
-                          <p className="text-sm font-semibold text-white leading-tight">
-                            {avatar.name}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="text-[10px] text-gray-500">{avatar.ageRange}</span>
-                            <span className="text-gray-600">·</span>
-                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-white/8 text-gray-300">
-                              {avatar.role}
-                            </span>
+                        {/* Header */}
+                        <div className="flex items-start gap-3 mb-3 pr-6">
+                          <span className="text-2xl leading-none">{avatar.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white leading-tight">
+                              {avatar.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="text-[10px] text-gray-500">{avatar.ageRange}</span>
+                              <span className="text-gray-600">·</span>
+                              <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-white/8 text-gray-300">
+                                {avatar.role}
+                              </span>
+                            </div>
+                            {/* Awareness + Sophistication badges */}
+                            {(avatar.awarenessLevel || avatar.sophisticationLevel) && (
+                              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                {avatar.awarenessLevel && (
+                                  <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium', awarenessColors[avatar.awarenessLevel] ?? 'bg-white/8 text-gray-400')}>
+                                    {awarenessLabels[avatar.awarenessLevel] ?? avatar.awarenessLevel}
+                                  </span>
+                                )}
+                                {avatar.sophisticationLevel && (
+                                  <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium', sophColors[avatar.sophisticationLevel] ?? 'bg-white/8 text-gray-400')}>
+                                    {avatar.sophisticationLevel}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
+
+                        {/* Core fields */}
+                        <div className="flex flex-col gap-2 text-xs">
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 shrink-0 font-medium w-14">Pain</span>
+                            <span className="text-gray-300 line-clamp-2">{avatar.painPoint}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 shrink-0 font-medium w-14">Desire</span>
+                            <span className="text-gray-300 line-clamp-1">{avatar.coreDesire}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 shrink-0 font-medium w-14">Trigger</span>
+                            <span className="text-gray-300 line-clamp-1">{avatar.buyingTrigger}</span>
+                          </div>
+                          {avatar.primaryObjection && (
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 shrink-0 font-medium w-14">Objection</span>
+                              <span className="text-rose-300/80 line-clamp-1">{avatar.primaryObjection}</span>
+                            </div>
+                          )}
+                          {avatar.voiceOfCustomer && (
+                            <p className="mt-1 text-[11px] text-gray-400 italic border-l-2 border-white/10 pl-2 line-clamp-2">
+                              &ldquo;{avatar.voiceOfCustomer}&rdquo;
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Sub-avatar button */}
+                        <button
+                          onClick={(e) => handleGenerateSubAvatars(avatar, e)}
+                          className={cn(
+                            'mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all duration-150',
+                            isGeneratingSub
+                              ? 'bg-white/5 text-gray-500 cursor-wait'
+                              : hasSubs
+                                ? 'bg-white/5 text-gray-400 hover:bg-white/8'
+                                : 'bg-[var(--color-accent)]/10 text-[var(--color-accent-light)] hover:bg-[var(--color-accent)]/20'
+                          )}
+                        >
+                          {isGeneratingSub ? (
+                            <>
+                              <span className="inline-block w-3 h-3 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+                              Generating sub-avatars...
+                            </>
+                          ) : hasSubs ? (
+                            <>
+                              <SplitSquareVertical className="w-3 h-3" />
+                              {isExpanded ? 'Hide' : 'Show'} sub-avatars ({subs.length})
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </>
+                          ) : (
+                            <>
+                              <SplitSquareVertical className="w-3 h-3" />
+                              Generate sub-avatars
+                              <ChevronDown className="w-3 h-3" />
+                            </>
+                          )}
+                        </button>
                       </div>
 
-                      <div className="flex flex-col gap-2 text-xs">
-                        <div className="flex gap-2">
-                          <span className="text-gray-500 shrink-0 font-medium w-14">Pain</span>
-                          <span className="text-gray-300 line-clamp-2">{avatar.painPoint}</span>
+                      {/* Sub-avatars expansion */}
+                      {isExpanded && (
+                        <div className={cn(
+                          'rounded-b-xl border border-t-0 overflow-hidden',
+                          isSelected ? 'border-[var(--color-accent)]' : 'border-white/10'
+                        )}>
+                          {isGeneratingSub && subs.length === 0 && (
+                            <div className="flex flex-col gap-2 p-3 bg-[#0d1117]">
+                              {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-16 rounded-lg bg-white/4 animate-pulse" />
+                              ))}
+                            </div>
+                          )}
+                          {subs.map((sub, idx) => (
+                            <div
+                              key={sub.id}
+                              className={cn(
+                                'px-4 py-3 bg-[#0d1117] flex flex-col gap-1.5',
+                                idx < subs.length - 1 ? 'border-b border-white/5' : ''
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-gray-500 font-medium">{String.fromCodePoint(0x2514)}</span>
+                                <span className="text-[11px] font-semibold text-gray-200">{sub.name}</span>
+                                <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium', readinessColors[sub.buyingReadiness] ?? 'bg-white/8 text-gray-400')}>
+                                  {sub.buyingReadiness}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-gray-500 pl-4">{sub.stage}</p>
+                              <p className="text-[11px] text-gray-300 pl-4 line-clamp-2">{sub.specificPain}</p>
+                              <p className="text-[10px] text-gray-500 italic pl-4 line-clamp-1">&ldquo;{sub.ownWords}&rdquo;</p>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex gap-2">
-                          <span className="text-gray-500 shrink-0 font-medium w-14">Desire</span>
-                          <span className="text-gray-300 line-clamp-1">{avatar.coreDesire}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="text-gray-500 shrink-0 font-medium w-14">Trigger</span>
-                          <span className="text-gray-300 line-clamp-1">{avatar.buyingTrigger}</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
